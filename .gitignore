@@ -1,0 +1,13 @@
+# Python ignores
+__pycache__/
+*.pyc
+venv/
+venv311/
+env/
+.env
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+.gemini/

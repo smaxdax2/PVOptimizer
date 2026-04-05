@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PV Optimizer Simulator</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .slider-container {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .val-text {
+            font-weight: bold;
+            color: var(--accent);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="brand">🧪 PV Simulator</div>
+        <div class="nav-links">
+            <a href="/">Zurück zum Dashboard</a>
+        </div>
+    </div>
+
+    <div class="grid-dash">
+        <div class="card" style="grid-column: 1 / -1;">
+            <h2>Test-Modus Steuerung</h2>
+            <p style="color:var(--text-secondary); margin-bottom: 2rem;">
+                Ziehen Sie an den Reglern, um die Werte des Wechselrichters zu simulieren.
+                Die Anwendung berechnet den Netzbezug-/einspeisung automatisch (Last - PV) und führt das
+                Optimierungsskript aus, um die konfigurierten Steckdosen zu steuern.
+            </p>
+
+            <div class="grid-dash" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+
+                <div class="slider-container">
+                    <div class="slider-header">
+                        <label>PV-Erzeugung (W)</label>
+                        <span id="pv-val" class="val-text green">0 W</span>
+                    </div>
+                    <input type="range" id="sim-pv" min="0" max="10000" step="10" value="0"
+                        oninput="updateVal('pv', this.value)" onchange="sendMock()">
+                </div>
+
+                <div class="slider-container">
+                    <div class="slider-header">
+                        <label>Hausverbrauch (W)</label>
+                        <span id="load-val" class="val-text red">500 W</span>
+                    </div>
+                    <input type="range" id="sim-load" min="0" max="5000" step="10" value="500"
+                        oninput="updateVal('load', this.value)" onchange="sendMock()">
+                </div>
+
+                <div class="slider-container">
+                    <div class="slider-header">
+                        <label>Batterieladung (%)</label>
+                        <span id="bat-val" class="val-text blue">50 %</span>
+                    </div>
+                    <input type="range" id="sim-bat" min="0" max="100" step="1" value="50"
+                        oninput="updateVal('bat', this.value + '%')" onchange="sendMock()">
+                </div>
+
+            </div>
+
+            <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 8px; margin-top: 1rem;">
+                <h3>Resultierender Status (Ausgang der Simulation)</h3>
+                <div
+                    style="display:flex; justify-content: space-between; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                    <span>Errechneter Netzstatus:</span>
+                    <strong><span id="calc-grid">500 W (Bezug)</span></strong>
+                </div>
+            </div>
+
+            <div id="error-msg" style="color:var(--danger); margin-top:1rem; display:none;">
+                Fehler: Die Anwendung muss mit --test gestartet werden, um diese Regler nutzen zu können.
+            </div>
+
+        </div>
+    </div>
+
+    <div id="toast" class="toast">Werte gesendet.</div>
+
+    <script>
+        function updateVal(id, val) {
+            document.getElementById(`${id}-val`).textContent = typeof val === 'string' && val.includes('%') ? val : val + ' W';
+            calcGrid();
+        }
+
+        function calcGrid() {
+            const pv = parseInt(document.getElementById('sim-pv').value);
+            const load = parseInt(document.getElementById('sim-load').value);
+            const grid = load - pv;
+
+            const gText = Math.abs(grid) + ' W (' + (grid > 0 ? 'Bezug' : (grid < 0 ? 'Einspeisung' : '-')) + ')';
+            document.getElementById('calc-grid').textContent = gText;
+            document.getElementById('calc-grid').className = grid > 0 ? 'red' : 'green';
+        }
+
+        async function sendMock() {
+            const req = {
+                pv_power: parseFloat(document.getElementById('sim-pv').value),
+                load_power: parseFloat(document.getElementById('sim-load').value),
+                battery_percent: parseFloat(document.getElementById('sim-bat').value)
+            };
+
+            try {
+                const res = await fetch('/api/mock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(req)
+                });
+                if (res.ok) {
+                    showToast("Simulationswerte aktualisiert.");
+                    document.getElementById('error-msg').style.display = 'none';
+                } else {
+                    document.getElementById('error-msg').style.display = 'block';
+                }
+            } catch (err) {
+                document.getElementById('error-msg').style.display = 'block';
+            }
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        calcGrid();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,85 @@
+{
+    "fronius_ip": "192.168.178.69",
+    "battery_threshold_percent": 90.0,
+    "water_heater": {
+        "name": "Warmwasser",
+        "power_w": 3500,
+        "gpio_pin": 17
+    },
+    "plugs": [
+        {
+            "name": "Switch_8_Ventilator",
+            "ip": "192.168.178.110",
+            "power_w": 100.0,
+            "is_enabled": false
+        },
+        {
+            "name": "Mess_Switch_3_Entfeuchter",
+            "ip": "192.168.178.111",
+            "power_w": 2000.0,
+            "is_enabled": true
+        },
+        {
+            "name": "Switch_2_Heizung_K\u00fcche",
+            "ip": "192.168.178.102",
+            "power_w": 2000.0,
+            "is_enabled": true
+        },
+        {
+            "name": "Switch_1_Heizung_Arbeitszimmer",
+            "ip": "192.168.178.101",
+            "power_w": 2000.0,
+            "is_enabled": true
+        },
+        {
+            "name": "Switch_4_Heizung_Bad",
+            "ip": "192.168.178.104",
+            "power_w": 1500.0,
+            "is_enabled": true
+        },
+        {
+            "name": "Switch_9_Heizl\u00fcfter_Dachboden",
+            "ip": "192.168.178.112",
+            "power_w": 2000.0,
+            "is_enabled": false
+        },
+        {
+            "name": "Switch_3_Luftbefeuchter",
+            "ip": "192.168.178.103",
+            "power_w": 100.0,
+            "is_enabled": true
+        },
+        {
+            "name": "Switch_6_Heizl\u00fcfter",
+            "ip": "192.168.178.108",
+            "power_w": 2000.0,
+            "is_enabled": false
+        },
+        {
+            "name": "Switch_5_GF",
+            "ip": "192.168.178.105",
+            "power_w": 100.0,
+            "is_enabled": false
+        },
+        {
+            "name": "Mess_Switch_1_L\u00fcftung",
+            "ip": "192.168.178.100",
+            "power_w": 100.0,
+            "is_enabled": false
+        },
+        {
+            "name": "Mess_Switch_2_Gefrierschrank",
+            "ip": "192.168.178.107",
+            "power_w": 100.0,
+            "is_enabled": false
+        },
+        {
+            "name": "Switch_7_Luftentfeuchter",
+            "ip": "192.168.178.109",
+            "power_w": 200.0,
+            "is_enabled": true
+        }
+    ],
+    "scan_interval_sec": 3600,
+    "optimize_interval_sec": 60
+}
