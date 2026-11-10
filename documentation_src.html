@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PV Optimizer — Technical Documentation</title>
+<style>
+    @page {
+        size: A4 portrait;
+        margin: 12mm 15mm 12mm 15mm;
+    }
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: #1e293b;
+        background-color: #ffffff;
+        font-size: 9pt;
+        line-height: 1.45;
+    }
+
+    /* Page container setup: 297mm - 24mm = 273mm available */
+    .page {
+        width: 100%;
+        height: 272mm;
+        max-height: 272mm;
+        page-break-after: always;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+    }
+
+    .page:last-child {
+        page-break-after: avoid;
+    }
+
+    .header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #0284c7;
+        padding-bottom: 5px;
+        margin-bottom: 12px;
+        font-size: 7.5pt;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .header-bar .doc-tag {
+        font-weight: 700;
+        color: #0369a1;
+    }
+
+    .footer-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid #cbd5e1;
+        padding-top: 6px;
+        margin-top: 8px;
+        font-size: 7.5pt;
+        color: #64748b;
+    }
+
+    .footer-bar .page-num {
+        font-weight: 600;
+        color: #0f172a;
+    }
+
+    .content-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    /* Typography */
+    h1 {
+        font-size: 20pt;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.15;
+        letter-spacing: -0.5px;
+    }
+
+    h2 {
+        font-size: 11.5pt;
+        font-weight: 700;
+        color: #0369a1;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 3px;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    h3 {
+        font-size: 9.5pt;
+        font-weight: 600;
+        color: #1e293b;
+        margin-top: 2px;
+        margin-bottom: 2px;
+    }
+
+    p {
+        color: #334155;
+        text-align: justify;
+    }
+
+    strong {
+        color: #0f172a;
+    }
+
+    /* Badges & Callouts */
+    .badge {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-size: 7pt;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-blue { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .badge-amber { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge-green { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .badge-red { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+    .callout {
+        background-color: #f8fafc;
+        border-left: 3.5px solid #0284c7;
+        padding: 7px 10px;
+        border-radius: 0 4px 4px 0;
+        font-size: 8.5pt;
+        color: #334155;
+    }
+
+    .callout.warning {
+        background-color: #fffbeb;
+        border-left-color: #f59e0b;
+        color: #92400e;
+    }
+
+    .callout.success {
+        background-color: #f0fdf4;
+        border-left-color: #10b981;
+        color: #166534;
+    }
+
+    /* Grid & Cards */
+    .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .grid-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+    }
+
+    .grid-4 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 8px;
+    }
+
+    .card {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 5px;
+        padding: 8px 10px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+
+    .card-header {
+        font-size: 8.5pt;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* Tables */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 8pt;
+        margin-top: 4px;
+    }
+
+    th {
+        background-color: #f1f5f9;
+        color: #334155;
+        text-align: left;
+        padding: 5px 7px;
+        font-weight: 700;
+        border-bottom: 1.5px solid #cbd5e1;
+    }
+
+    td {
+        padding: 4px 7px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+        vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+        background-color: #f8fafc;
+    }
+
+    code {
+        font-family: Consolas, "SF Mono", Monaco, "Courier New", monospace;
+        font-size: 7.8pt;
+        background-color: #f1f5f9;
+        color: #0f172a;
+        padding: 1px 4px;
+        border-radius: 3px;
+        border: 1px solid #e2e8f0;
+    }
+
+    pre {
+        font-family: Consolas, "SF Mono", Monaco, "Courier New", monospace;
+        font-size: 7.5pt;
+        background-color: #0f172a;
+        color: #e2e8f0;
+        padding: 8px 10px;
+        border-radius: 5px;
+        line-height: 1.35;
+        overflow: hidden;
+    }
+
+    /* Diagram Styles */
+    .flow-step {
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        padding: 6px 8px;
+        font-size: 7.8pt;
+        position: relative;
+    }
+
+    .flow-step.active-step {
+        border-left: 3px solid #0284c7;
+        background: #f0f9ff;
+    }
+
+    .flow-arrow {
+        text-align: center;
+        color: #94a3b8;
+        font-size: 10pt;
+        font-weight: bold;
+        line-height: 1;
+        margin: 1px 0;
+    }
+</style>
+</head>
+<body>
+
+<!-- ================= PAGE 1 ================= -->
+<div class="page">
+    <div class="header-bar">
+        <span class="doc-tag">PV Optimizer Technical Manual</span>
+        <span>Residential Energy Management System</span>
+        <span>Version 1.2 — Architecture &amp; Deployment</span>
+    </div>
+
+    <div class="content-body">
+        <!-- Title Banner -->
+        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0369a1 100%); color: white; padding: 18px 20px; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <span class="badge badge-amber" style="margin-bottom: 6px; display: inline-block;">Fronius Symo GEN24 10 Plus &amp; Raspberry Pi</span>
+                    <h1 style="color: white; margin-bottom: 4px;">PV Optimizer Documentation</h1>
+                    <div style="font-size: 10pt; color: #94a3b8; font-weight: 500;">
+                        Intelligent Real-Time Photovoltaic Self-Consumption Optimization &amp; Dynamic Load Controller
+                    </div>
+                </div>
+                <div style="text-align: right; font-size: 7.5pt; color: #cbd5e1; line-height: 1.5; background: rgba(255,255,255,0.08); padding: 8px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.12);">
+                    <div><strong>Target HW:</strong> Raspberry Pi 5 (Bookworm)</div>
+                    <div><strong>Runtime:</strong> Python 3.10+ / FastAPI</div>
+                    <div><strong>Protocol:</strong> Fronius Solar API v1</div>
+                    <div><strong>Smart Plugs:</strong> TP-Link Kasa (Local UDP)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 1: Executive Summary -->
+        <div>
+            <h2>1. Executive Summary &amp; Application Scope</h2>
+            <p>
+                <strong>PV Optimizer</strong> is a dedicated on-premises automation system engineered to maximize the self-consumption (<em>Eigenverbrauchsoptimierung</em>) of residential photovoltaic installations. Modern hybrid PV systems with battery storage frequently produce substantial power surpluses during peak sunlight hours. Because feed-in remuneration tariffs are significantly lower than grid purchase rates, consuming self-generated power locally yields substantial economic and ecological returns.
+            </p>
+            <p style="margin-top: 4px;">
+                PV Optimizer continuously reads generation and consumption telemetry directly from a <strong>Fronius Symo GEN24 10 Plus</strong> hybrid inverter via its local REST API. It regulates high-wattage thermal storage (such as a 3.5 kW electric water immersion heater) via a <strong>Raspberry Pi GPIO relay</strong> alongside a fleet of distributed <strong>TP-Link Kasa Wi-Fi smart plugs</strong> powering electric heaters, dehumidifiers, fans, and appliances.
+            </p>
+        </div>
+
+        <!-- Section 2: Key Operational Objectives -->
+        <div class="grid-3">
+            <div class="card" style="border-top: 3px solid #10b981;">
+                <div class="card-header">
+                    <span>Zero Grid Import</span>
+                    <span class="badge badge-green">Priority 1</span>
+                </div>
+                <p style="font-size: 7.8pt;">
+                    Eliminates costly grid draw by automatically shedding active consumers within 60 seconds whenever domestic power draw exceeds instantaneous solar and battery delivery.
+                </p>
+            </div>
+            <div class="card" style="border-top: 3px solid #0284c7;">
+                <div class="card-header">
+                    <span>Battery Preservation</span>
+                    <span class="badge badge-blue">SOC Protection</span>
+                </div>
+                <p style="font-size: 7.8pt;">
+                    Enforces an adjustable battery state-of-charge threshold (e.g. 90%). All solar surplus is directed into home storage first before any thermal or auxiliary dump loads are triggered.
+                </p>
+            </div>
+            <div class="card" style="border-top: 3px solid #f59e0b;">
+                <div class="card-header">
+                    <span>Thermal Energy Storage</span>
+                    <span class="badge badge-amber">3.5 kW Immersion</span>
+                </div>
+                <p style="font-size: 7.8pt;">
+                    Directs excess solar yield exceeding 3500 W into a domestic hot water cylinder via direct GPIO solid-state relay switching, effectively converting surplus electricity into heat.
+                </p>
+            </div>
+        </div>
+
+        <!-- Section 3: High-Level System Architecture Diagram -->
+        <div>
+            <h2>2. High-Level System Architecture</h2>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-top: 4px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                    <!-- PV & Grid Block -->
+                    <div style="flex: 1; background: white; border: 1px solid #cbd5e1; border-radius: 5px; padding: 8px; text-align: center;">
+                        <div style="font-weight: 700; color: #b45309; font-size: 8pt;">☀️ PV &amp; Hybrid Inverter</div>
+                        <div style="font-size: 7pt; color: #64748b; margin-top: 2px;">Fronius Symo GEN24 10 Plus</div>
+                        <div style="font-size: 6.8pt; background: #fef3c7; color: #92400e; padding: 2px 4px; border-radius: 3px; margin-top: 4px; font-weight: 600;">
+                            API: Solar API v1 (Realtime)
+                        </div>
+                    </div>
+
+                    <div style="font-size: 14pt; color: #94a3b8; font-weight: bold;">➔</div>
+
+                    <!-- Raspberry Pi Controller Block -->
+                    <div style="flex: 1.4; background: #f0f9ff; border: 1.5px solid #0284c7; border-radius: 5px; padding: 8px; text-align: center;">
+                        <div style="font-weight: 800; color: #0369a1; font-size: 8.5pt;">⚡ Raspberry Pi 5 Optimizer</div>
+                        <div style="font-size: 7pt; color: #334155; margin-top: 2px;">FastAPI Daemon &amp; Logic Engine</div>
+                        <div style="display: flex; justify-content: center; gap: 4px; margin-top: 4px;">
+                            <span style="font-size: 6.5pt; background: #e0f2fe; color: #0369a1; padding: 1px 4px; border-radius: 2px;">Loop: 60s</span>
+                            <span style="font-size: 6.5pt; background: #dcfce7; color: #166534; padding: 1px 4px; border-radius: 2px;">Scan: 3600s</span>
+                            <span style="font-size: 6.5pt; background: #f1f5f9; color: #475569; padding: 1px 4px; border-radius: 2px;">Port: 8000</span>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 14pt; color: #94a3b8; font-weight: bold;">➔</div>
+
+                    <!-- Controlled Loads Block -->
+                    <div style="flex: 1.3; background: white; border: 1px solid #cbd5e1; border-radius: 5px; padding: 8px; text-align: center;">
+                        <div style="font-weight: 700; color: #0f172a; font-size: 8pt;">🔌 Controlled Consumers</div>
+                        <div style="display: flex; flex-direction: column; gap: 3px; margin-top: 3px;">
+                            <div style="font-size: 6.8pt; background: #fef3c7; color: #92400e; padding: 2px 4px; border-radius: 3px; font-weight: 600;">
+                                Relais: Warmwasser (GPIO 17 / 3.5 kW)
+                            </div>
+                            <div style="font-size: 6.8pt; background: #f1f5f9; color: #334155; padding: 2px 4px; border-radius: 3px; font-weight: 600;">
+                                Network: 12x TP-Link Kasa Plugs
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Key System Parameters Summary Table -->
+        <div>
+            <h2>3. Core System Specifications &amp; Defaults</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 28%;">Parameter</th>
+                        <th style="width: 22%;">Default Value</th>
+                        <th style="width: 50%;">Operational Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Inverter IP (`fronius_ip`)</strong></td>
+                        <td><code>192.168.178.69</code></td>
+                        <td>Local IPv4 address of Fronius Symo GEN24 communication card (HTTP port 80).</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Battery Threshold (`battery_threshold_percent`)</strong></td>
+                        <td><code>90.0 %</code></td>
+                        <td>Minimum BYD battery SOC required before any surplus switching is permitted.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Warm Water Heater (`water_heater`)</strong></td>
+                        <td><code>3500 W / GPIO 17</code></td>
+                        <td>High-priority thermal immersion dump load wired directly to Raspberry Pi Pin 11.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Optimization Cycle (`optimize_interval_sec`)</strong></td>
+                        <td><code>60 seconds</code></td>
+                        <td>Periodic cadence for reading inverter telemetry and evaluating switching rules.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Network Scan Interval (`scan_interval_sec`)</strong></td>
+                        <td><code>3600 seconds</code></td>
+                        <td>Hourly UDP discovery to detect new plugs or mark unplugged devices offline.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="callout" style="margin-top: 2px;">
+            <strong>Autonomous Operation:</strong> The system is fully self-contained. It requires no cloud subscriptions, no external broker (e.g. MQTT is not required), and operates seamlessly during Internet outages as all communication is strictly restricted to the local area network (LAN/WLAN) and physical GPIO pins.
+        </div>
+    </div>
+
+    <div class="footer-bar">
+        <span>PV Optimizer Documentation</span>
+        <span>Section 1 &amp; 2: System Overview</span>
+        <span class="page-num">Page 1 of 5</span>
+    </div>
+</div>
+
+<!-- ================= PAGE 2 ================= -->
+<div class="page">
+    <div class="header-bar">
+        <span class="doc-tag">PV Optimizer Technical Manual</span>
+        <span>Hardware &amp; Software Architecture</span>
+        <span>Version 1.2 — Architecture &amp; Deployment</span>
+    </div>
+
+    <div class="content-body">
+        <div>
+            <h2>4. Hardware Topology &amp; Physical Interfacing</h2>
+            <p>
+                The PV Optimizer infrastructure bridges industrial photovoltaic hardware with standard domestic home automation appliances. The system coordinates three distinct physical interfaces: high-voltage solar and battery electronics, low-voltage embedded microcomputer GPIOs, and wireless smart home sockets.
+            </p>
+        </div>
+
+        <div class="grid-2">
+            <!-- Hardware Component 1 -->
+            <div class="card">
+                <div class="card-header">
+                    <span>Fronius Symo GEN24 10 Plus</span>
+                    <span class="badge badge-amber">Solar Core</span>
+                </div>
+                <p style="font-size: 7.8pt;">
+                    A three-phase hybrid inverter with integrated Multi Flow Technology, capable of managing DC PV input (up to 10 kWp) and bi-directional charging for a high-voltage BYD Battery-Box. Provides real-time telemetry through its onboard webserver via JSON/REST endpoints over local Wi-Fi or Ethernet.
+                </p>
+                <div style="margin-top: 4px; font-size: 7.2pt; color: #64748b;">
+                    <strong>Polled Endpoint:</strong> <code>/solar_api/v1/GetPowerFlowRealtimeData.fcgi</code>
+                </div>
+            </div>
+
+            <!-- Hardware Component 2 -->
+            <div class="card">
+                <div class="card-header">
+                    <span>Raspberry Pi 5 (8GB / 4GB)</span>
+                    <span class="badge badge-blue">Controller Node</span>
+                </div>
+                <p style="font-size: 7.8pt;">
+                    Runs Debian-based Raspberry Pi OS (Bookworm 64-bit). Houses the Broadcom BCM2712 processor and custom RP1 I/O controller managing peripheral interfaces. Houses the FastAPI application daemon, background asyncio task loops, and physical GPIO switching circuitry.
+                </p>
+                <div style="margin-top: 4px; font-size: 7.2pt; color: #64748b;">
+                    <strong>Driver Library:</strong> <code>rpi-lgpio</code> (drop-in compatibility layer for RP1 silicon)
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <!-- Hardware Component 3 -->
+            <div class="card">
+                <div class="card-header">
+                    <span>Relay &amp; Water Immersion Heater</span>
+                    <span class="badge badge-red">3500 W Thermal</span>
+                </div>
+                <p style="font-size: 7.8pt;">
+                    A 3.5 kW electric heating element submerged in the domestic hot water buffer tank. Controlled via Raspberry Pi BCM Pin 17 driving an optocoupled relay board. The relay in turn drives a heavy-duty industrial AC contactor to switch the 230V/16A heating circuit safely.
+                </p>
+                <div style="margin-top: 4px; font-size: 7.2pt; color: #64748b;">
+                    <strong>Wiring:</strong> Pin 11 (GPIO 17) ➔ Optocoupler IN | Pin 6 ➔ GND
+                </div>
+            </div>
+
+            <!-- Hardware Component 4 -->
+            <div class="card">
+                <div class="card-header">
+                    <span>TP-Link Kasa Smart Plugs</span>
+                    <span class="badge badge-green">12x Distributed</span>
+                </div>
+                <p style="font-size: 7.8pt;">
+                    Wi-Fi connected smart plugs (KP115, HS110, HS100) distributed across the home. Connected to localized heating loads (kitchen, bathroom, study), air dehumidifiers, humidifiers, and ventilation fans. Communicates locally via port 9999 UDP/TCP autodiscovery and JSON control frames.
+                </p>
+                <div style="margin-top: 4px; font-size: 7.2pt; color: #64748b;">
+                    <strong>Discovery:</strong> Zero-configuration UDP Broadcast (port 9999)
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5: Software Stack Architecture -->
+        <div>
+            <h2>5. Software Architecture &amp; Component Stack</h2>
+            <p>
+                The software application is constructed in Python using an asynchronous, non-blocking architecture designed to ensure that network latency or temporary device dropouts never freeze the core optimization cycle.
+            </p>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 8px; margin-top: 4px;">
+                <div class="grid-3" style="gap: 6px;">
+                    <div style="background: white; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px;">
+                        <div style="font-weight: 700; color: #0284c7; font-size: 8pt;">FastAPI &amp; Uvicorn</div>
+                        <div style="font-size: 7.2pt; color: #475569; margin-top: 2px;">
+                            High-performance ASGI server handling concurrent REST API requests, websocket upgrades, and serving compiled static web dashboard assets.
+                        </div>
+                    </div>
+                    <div style="background: white; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px;">
+                        <div style="font-weight: 700; color: #0284c7; font-size: 8pt;">python-kasa Engine</div>
+                        <div style="font-size: 7.2pt; color: #475569; margin-top: 2px;">
+                            Asynchronous smart plug client performing automatic network discovery, status telemetry polling, and instantaneous remote actuation without cloud delays.
+                        </div>
+                    </div>
+                    <div style="background: white; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px;">
+                        <div style="font-weight: 700; color: #0284c7; font-size: 8pt;">HTTPX Async Client</div>
+                        <div style="font-size: 7.2pt; color: #475569; margin-top: 2px;">
+                            Non-blocking HTTP engine querying the Fronius Symo GEN24 Solar API. Implements short timeouts (10s) and graceful exception catching.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 6: Electrical & Safety Isolation Schematic -->
+        <div>
+            <h2>6. Electrical Circuit &amp; Safety Isolation</h2>
+            <div class="callout warning">
+                <strong>Important Electrical Safety Requirement:</strong> The Raspberry Pi GPIO pins operate at 3.3V DC logic level with maximum current sourcing capability of ~16 mA. Direct connection to an AC heating element will permanently destroy the Raspberry Pi and presents a severe electrical hazard.
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 20%;">Stage</th>
+                        <th style="width: 30%;">Component Used</th>
+                        <th style="width: 50%;">Safety &amp; Operational Function</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Logic Layer</strong></td>
+                        <td>Raspberry Pi GPIO Pin 17</td>
+                        <td>3.3V DC digital logic output (active HIGH on trigger, LOW on idle).</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Galvanic Isolation</strong></td>
+                        <td>Optocoupled Relay Module</td>
+                        <td>Provides 2500V optical isolation between Raspberry Pi 5V rail and high-voltage circuit.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Power Switching</strong></td>
+                        <td>25A 2-Pole AC Contactor</td>
+                        <td>Industrial contactor with integrated arc suppression safely switches 230V AC / 16A (3500 W).</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Thermal Protection</strong></td>
+                        <td>Mechanical Temperature Cutoff</td>
+                        <td>Dual safety thermostat on water tank cuts power independently at 65°C to prevent boiling.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer-bar">
+        <span>PV Optimizer Technical Manual</span>
+        <span>Section 3: Hardware &amp; Software Topology</span>
+        <span class="page-num">Page 2 of 5</span>
+    </div>
+</div>
+
+<!-- ================= PAGE 3 ================= -->
+<div class="page">
+    <div class="header-bar">
+        <span class="doc-tag">PV Optimizer Technical Manual</span>
+        <span>Algorithmic Logic &amp; Decision Matrix</span>
+        <span>Version 1.2 — Architecture &amp; Deployment</span>
+    </div>
+
+    <div class="content-body">
+        <div>
+            <h2>7. Algorithmic Optimization Engine</h2>
+            <p>
+                The core intelligence of PV Optimizer resides within <code>pv_optimizer/logic.py</code>. The optimizer is triggered on a non-blocking 60-second timer loop. Every iteration executes a deterministic four-phase decision cycle designed to balance real-time energy flows with zero oscillation.
+            </p>
+        </div>
+
+        <!-- Section 8: Flowchart & 4-Phase Cycle -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px;">
+            <div style="display: flex; justify-content: space-between; gap: 8px;">
+                <!-- Step 1 -->
+                <div class="flow-step" style="flex: 1;">
+                    <div style="font-weight: 700; color: #0284c7; margin-bottom: 2px;">Phase 1: Ingestion</div>
+                    <div>Queries Fronius Solar API:</div>
+                    <ul style="padding-left: 12px; font-size: 7.2pt; color: #475569; margin-top: 2px;">
+                        <li><code>P_PV</code>: Solar power (W)</li>
+                        <li><code>P_Grid</code>: Grid net flow (W)</li>
+                        <li><code>P_Load</code>: Domestic load (W)</li>
+                        <li><code>SOC</code>: Battery charge (%)</li>
+                    </ul>
+                </div>
+                <!-- Step 2 -->
+                <div class="flow-step" style="flex: 1.1;">
+                    <div style="font-weight: 700; color: #b45309; margin-bottom: 2px;">Phase 2: Filtering</div>
+                    <div>Filters manageable devices:</div>
+                    <ul style="padding-left: 12px; font-size: 7.2pt; color: #475569; margin-top: 2px;">
+                        <li><code>is_online == True</code></li>
+                        <li><code>is_enabled == True</code></li>
+                        <li><code>is_manual_override == False</code></li>
+                        <li>Excludes disconnected plugs</li>
+                    </ul>
+                </div>
+                <!-- Step 3 -->
+                <div class="flow-step" style="flex: 1.2;">
+                    <div style="font-weight: 700; color: #dc2626; margin-bottom: 2px;">Phase 3: Grid Draw Mitigation</div>
+                    <div>If <code>P_Grid &gt; 0</code> (Importing):</div>
+                    <ul style="padding-left: 12px; font-size: 7.2pt; color: #475569; margin-top: 2px;">
+                        <li>Sort active plugs <strong>descending</strong></li>
+                        <li>Turn OFF largest loads first</li>
+                        <li>Turn OFF Water Heater if needed</li>
+                        <li>Immediate grid neutral state</li>
+                    </ul>
+                </div>
+                <!-- Step 4 -->
+                <div class="flow-step" style="flex: 1.2;">
+                    <div style="font-weight: 700; color: #16a34a; margin-bottom: 2px;">Phase 4: Surplus Allocation</div>
+                    <div>If <code>P_Grid &lt; 0</code> &amp; <code>SOC &ge; 90%</code>:</div>
+                    <ul style="padding-left: 12px; font-size: 7.2pt; color: #475569; margin-top: 2px;">
+                        <li>If surplus &ge; 3.5 kW: Warmwasser ON</li>
+                        <li>Sort inactive plugs <strong>ascending</strong></li>
+                        <li>Turn ON fitting loads sequentially</li>
+                        <li>Maximize local absorption</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 9: Detailed Mathematical Decision Matrix -->
+        <div>
+            <h2>8. Energy Flow Decision Matrix &amp; Prioritization</h2>
+            <p>
+                The optimizer categorizes network states into three mutual operational regimes based on the sign of grid power ($P_{Grid}$) and battery SOC:
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 22%;">Condition</th>
+                        <th style="width: 25%;">Grid State</th>
+                        <th style="width: 25%;">Algorithm Action</th>
+                        <th style="width: 28%;">Consumer Priority Sequence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Regime A: Grid Import</strong><br><code>P_Grid &gt; 0</code></td>
+                        <td>Household consumes power from public utility.</td>
+                        <td><strong>Rapid Load Shedding:</strong> Shuts down devices to eliminate purchase costs.</td>
+                        <td>1. Plugs (Highest wattage ➔ Lowest)<br>2. Water Heater (3500 W)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Regime B: Battery Priority</strong><br><code>P_Grid &lt; 0</code> &amp; <code>SOC &lt; 90%</code></td>
+                        <td>Solar surplus exists, but battery storage is below reserve threshold.</td>
+                        <td><strong>Inaction (Battery Protection):</strong> Permits all surplus to flow into DC battery.</td>
+                        <td>All auxiliary dump loads remain OFF. Battery takes 100% of available surplus.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Regime C: Surplus Dump</strong><br><code>P_Grid &lt; 0</code> &amp; <code>SOC &ge; 90%</code></td>
+                        <td>Surplus exists AND home storage battery is satisfied.</td>
+                        <td><strong>Cascaded Activation:</strong> Turns ON loads that fit within calculated surplus.</td>
+                        <td>1. Water Heater (if surplus &ge; 3.5 kW)<br>2. Plugs (Lowest wattage ➔ Highest)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Section 10: State Management & Fault Resilience -->
+        <div>
+            <h2>9. State Management, Failsafes &amp; Self-Healing</h2>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <span>Offline Device Handling</span>
+                        <span class="badge badge-amber">Self-Healing</span>
+                    </div>
+                    <p style="font-size: 7.8pt;">
+                        If a Kasa plug is unplugged, moved, or loses Wi-Fi connectivity, the background scanner detects the failure. The device is marked <code>is_online: false</code> and automatically set to <code>is_enabled: false</code> in <code>config.json</code>. This guarantees the optimizer will never attempt to activate an unreachable load.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span>Manual Override Bypass</span>
+                        <span class="badge badge-blue">User Priority</span>
+                    </div>
+                    <p style="font-size: 7.8pt;">
+                        Any appliance can be flagged with <code>is_manual_override: true</code> through the Web Dashboard. The automated optimization algorithm immediately skips the consumer. The user can then toggle the device ON or OFF at will without the background loop reversing their decision.
+                    </p>
+                </div>
+            </div>
+            <div class="callout success" style="margin-top: 6px;">
+                <strong>Oscillation Damping &amp; Inverter Hysteresis:</strong> By evaluating real-time active power rather than estimated yield and sorting shed loads from largest to smallest, the optimizer prevents "hunting" (rapid cyclic toggling). A load is only activated if instantaneous surplus strictly exceeds its rated nominal wattage.
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-bar">
+        <span>PV Optimizer Technical Manual</span>
+        <span>Section 4: Optimization Engine &amp; Logic</span>
+        <span class="page-num">Page 3 of 5</span>
+    </div>
+</div>
+
+<!-- ================= PAGE 4 ================= -->
+<div class="page">
+    <div class="header-bar">
+        <span class="doc-tag">PV Optimizer Technical Manual</span>
+        <span>Web Interface, REST API &amp; Configuration</span>
+        <span>Version 1.2 — Architecture &amp; Deployment</span>
+    </div>
+
+    <div class="content-body">
+        <div>
+            <h2>10. Web Dashboard &amp; Interactive Interface</h2>
+            <p>
+                PV Optimizer serves an integrated single-page application directly from its FastAPI backend. The interface is accessible from any browser on the local network (PC, tablet, or smartphone) at <code>http://&lt;raspberry-ip&gt;:8000</code>.
+            </p>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-header">
+                    <span>Live Telemetry Dashboard (`index.html`)</span>
+                    <span class="badge badge-blue">UI Overview</span>
+                </div>
+                <ul style="padding-left: 14px; font-size: 7.8pt; color: #334155; line-height: 1.5;">
+                    <li><strong>4 Key Metrics Tiles:</strong> Real-time display of PV generation (W), domestic load (W), grid import/export badge (W), and battery SOC (%).</li>
+                    <li><strong>Consumer Cards:</strong> Displays power draw, online status indicator, manual override switch, and direct toggle button.</li>
+                    <li><strong>Instant Scan Button:</strong> Triggers an ad-hoc network scan for smart plugs with live UI status notifications.</li>
+                </ul>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span>Hardware Simulation Console (`test.html`)</span>
+                    <span class="badge badge-amber">Dev &amp; Testing</span>
+                </div>
+                <ul style="padding-left: 14px; font-size: 7.8pt; color: #334155; line-height: 1.5;">
+                    <li><strong>Mock Inverter Sliders:</strong> Manually vary simulated PV generation (0-10 kW), base house consumption, and battery percentage.</li>
+                    <li><strong>Mock GPIO Relays:</strong> Emulates physical pin switching in memory for safe, hardware-free development on PC/Mac.</li>
+                    <li><strong>Algorithm Verification:</strong> Inspect switching behavior under synthetic edge cases (e.g. cloud passage, battery depletion).</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Section 11: REST API Reference Table -->
+        <div>
+            <h2>11. Complete REST API Specification</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 12%;">Method</th>
+                        <th style="width: 28%;">Endpoint</th>
+                        <th style="width: 25%;">Payload / Params</th>
+                        <th style="width: 35%;">Description &amp; Behavior</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge badge-blue">GET</span></td>
+                        <td><code>/api/status</code></td>
+                        <td><em>None</em></td>
+                        <td>Returns current PV generation, grid power, load power, and battery SOC from the inverter.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-blue">GET</span></td>
+                        <td><code>/api/consumers</code></td>
+                        <td><em>None</em></td>
+                        <td>Returns list of all consumers with state, nominal power, override flag, and online status.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-green">POST</span></td>
+                        <td><code>/api/consumers/{id}/override</code></td>
+                        <td><code>{"is_manual_override": bool}</code></td>
+                        <td>Enables or disables manual override on a specific consumer (exempting it from automation).</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-green">POST</span></td>
+                        <td><code>/api/consumers/{id}/toggle</code></td>
+                        <td><code>{"is_on": bool}</code></td>
+                        <td>Actuates a consumer ON or OFF. Returns 400 error if manual override is not enabled.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-blue">GET</span></td>
+                        <td><code>/api/config</code></td>
+                        <td><em>None</em></td>
+                        <td>Returns complete system configuration including plug lists and simulation flags.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-green">POST</span></td>
+                        <td><code>/api/config</code></td>
+                        <td><code>ConfigUpdate</code> model</td>
+                        <td>Persists updated parameters to <code>config.json</code> and reinitializes active objects.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-green">POST</span></td>
+                        <td><code>/api/scan</code></td>
+                        <td><em>None</em></td>
+                        <td>Executes an immediate Kasa discovery scan and updates configuration automatically.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-green">POST</span></td>
+                        <td><code>/api/mock</code></td>
+                        <td><code>{"pv_power", "load", "soc"}</code></td>
+                        <td>Updates simulated values when application is started in <code>--mock-inverter</code> mode.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Section 12: Configuration File Structure -->
+        <div>
+            <h2>12. Declarative Configuration (`config.json`)</h2>
+            <div class="grid-2">
+                <div>
+                    <p style="font-size: 7.8pt;">
+                        The application persists all settings in a human-readable <code>config.json</code> file located in the root working directory. Whenever newly discovered plugs are identified or missing plugs are marked offline, the file is automatically updated via callback.
+                    </p>
+                    <div class="callout" style="margin-top: 6px;">
+                        <strong>Safe Hot-Reload:</strong> Saving parameters through the Web UI updates both disk storage and runtime memory without requiring a service restart.
+                    </div>
+                </div>
+                <div>
+<pre>{
+  "fronius_ip": "192.168.178.69",
+  "battery_threshold_percent": 90.0,
+  "scan_interval_sec": 3600,
+  "optimize_interval_sec": 60,
+  "water_heater": {
+    "name": "Warmwasser",
+    "power_w": 3500,
+    "gpio_pin": 17
+  },
+  "plugs": [
+    {
+      "name": "Switch_2_Heizung_Kueche",
+      "ip": "192.168.178.102",
+      "power_w": 2000.0,
+      "is_enabled": true
+    }
+  ]
+}</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-bar">
+        <span>PV Optimizer Technical Manual</span>
+        <span>Section 5: Web UI &amp; REST API Reference</span>
+        <span class="page-num">Page 4 of 5</span>
+    </div>
+</div>
+
+<!-- ================= PAGE 5 ================= -->
+<div class="page">
+    <div class="header-bar">
+        <span class="doc-tag">PV Optimizer Technical Manual</span>
+        <span>Installation, Deployment &amp; Maintenance</span>
+        <span>Version 1.2 — Architecture &amp; Deployment</span>
+    </div>
+
+    <div class="content-body">
+        <div>
+            <h2>13. Deployment on Raspberry Pi 5 (Debian Bookworm)</h2>
+            <p>
+                Raspberry Pi OS (Bookworm) enforces strict package isolation (PEP 668) prohibiting unmanaged <code>pip</code> installations into the global system Python environment. Furthermore, the Raspberry Pi 5 introduces the <strong>RP1 peripheral controller chip</strong>, replacing legacy memory-mapped GPIO access with character device drivers. Follow this standardized production setup:
+            </p>
+        </div>
+
+        <!-- Step 1 & 2 -->
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-header">
+                    <span>Step 1: System Preparation &amp; Tooling</span>
+                    <span class="badge badge-blue">OS Setup</span>
+                </div>
+                <p style="font-size: 7.8pt; margin-bottom: 4px;">Update packages and install core build tools:</p>
+<pre>sudo apt update &amp;&amp; sudo apt upgrade -y
+sudo apt install -y python3-venv python3-pip git</pre>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span>Step 2: Repository Deployment</span>
+                    <span class="badge badge-blue">Filesystem</span>
+                </div>
+                <p style="font-size: 7.8pt; margin-bottom: 4px;">Clone application files to the user home directory:</p>
+<pre>cd ~
+git clone &lt;repo-url&gt; PVOptimizer
+cd PVOptimizer</pre>
+            </div>
+        </div>
+
+        <!-- Step 3 & 4 -->
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-header">
+                    <span>Step 3: Isolated Python Virtual Environment</span>
+                    <span class="badge badge-amber">PEP 668 Compliant</span>
+                </div>
+                <p style="font-size: 7.8pt; margin-bottom: 4px;">Initialize virtualenv and install dependencies + RP1 driver:</p>
+<pre>python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+pip install rpi-lgpio</pre>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span>Step 4: Manual Verification Run</span>
+                    <span class="badge badge-green">Smoke Test</span>
+                </div>
+                <p style="font-size: 7.8pt; margin-bottom: 4px;">Start daemon interactively to confirm network reachability:</p>
+<pre>python main.py --host 0.0.0.0 --port 8000
+# Open http://&lt;Pi-IP&gt;:8000 in browser
+# Stop test with Ctrl + C</pre>
+            </div>
+        </div>
+
+        <!-- Section 14: Systemd Service Configuration -->
+        <div>
+            <h2>14. Production Autostart via Systemd (`pvoptimizer.service`)</h2>
+            <p>
+                To ensure uninterrupted 24/7 background operation across power outages or reboots, register the application as a system-managed daemon service at <code>/etc/systemd/system/pvoptimizer.service</code>:
+            </p>
+            <div class="grid-2" style="margin-top: 4px;">
+                <div>
+<pre>[Unit]
+Description=PV Optimizer Web Dashboard &amp; Logic Engine
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/PVOptimizer
+Environment="PATH=/home/pi/PVOptimizer/venv/bin:$PATH"
+ExecStart=/home/pi/PVOptimizer/venv/bin/python main.py --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target</pre>
+                </div>
+                <div style="display: flex; flex-direction: column; justify-content: space-between;">
+                    <div class="card">
+                        <div class="card-header">
+                            <span>Service Registration Commands</span>
+                            <span class="badge badge-blue">CLI Control</span>
+                        </div>
+                        <p style="font-size: 7.8pt; margin-bottom: 4px;">Reload systemctl daemon, enable autostart, and launch:</p>
+<pre>sudo systemctl daemon-reload
+sudo systemctl enable pvoptimizer.service
+sudo systemctl start pvoptimizer.service</pre>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <span>Diagnostic &amp; Status Inspection</span>
+                            <span class="badge badge-green">Operations</span>
+                        </div>
+                        <p style="font-size: 7.8pt; margin-bottom: 4px;">Verify active running state and tail application logs:</p>
+<pre>sudo systemctl status pvoptimizer.service
+sudo journalctl -u pvoptimizer.service -f</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 15: Operational Diagnostics & Maintenance -->
+        <div>
+            <h2>15. Operational Troubleshooting &amp; Health Checks</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Symptom</th>
+                        <th style="width: 35%;">Probable Root Cause</th>
+                        <th style="width: 40%;">Recommended Corrective Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Inverter status shows 0 W</strong></td>
+                        <td>Fronius IP changed or web server disabled.</td>
+                        <td>Set static DHCP lease in router; verify port 80 accessibility via <code>curl http://&lt;IP&gt;/solar_api/v1/...</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Relay clicking not occurring</strong></td>
+                        <td>Missing <code>rpi-lgpio</code> package on Pi 5.</td>
+                        <td>Ensure <code>pip install rpi-lgpio</code> is installed inside the virtualenv (not legacy <code>RPi.GPIO</code>).</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Plugs flagged as offline</strong></td>
+                        <td>Smart plug Wi-Fi disconnected or subnet blocked.</td>
+                        <td>Verify plug LED is green; click "Suchen (Scan)" in UI to refresh UDP discovery table.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer-bar">
+        <span>PV Optimizer Technical Manual</span>
+        <span>Section 6: Production Deployment &amp; Systemd</span>
+        <span class="page-num">Page 5 of 5</span>
+    </div>
+</div>
+
+</body>
+</html>
