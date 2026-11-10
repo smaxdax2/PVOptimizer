@@ -105,6 +105,54 @@
 
     <script>
         let isConfigLoaded = false;
+        let isReordering = false;
+
+        async function movePlugPriority(c_id, direction) {
+            if (isReordering) return;
+            isReordering = true;
+            try {
+                const res = await fetch('/api/config');
+                let conf = await res.json();
+                let plugs = conf.plugs || [];
+                
+                // Sort plugs according to priority first
+                plugs.sort((a, b) => (a.priority || 100) - (b.priority || 100));
+                
+                const index = plugs.findIndex(p => 'plug_' + p.ip.replace(/\./g, '_') === c_id);
+                if (index === -1) return;
+                
+                const targetIdx = index + direction;
+                if (targetIdx < 0 || targetIdx >= plugs.length) return;
+                
+                // Swap the two plugs in array
+                const temp = plugs[index];
+                plugs[index] = plugs[targetIdx];
+                plugs[targetIdx] = temp;
+                
+                // Re-assign clean consecutive 1-indexed priorities
+                plugs.forEach((p, idx) => {
+                    p.priority = idx + 1;
+                });
+                
+                conf.plugs = plugs;
+                
+                const postRes = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(conf)
+                });
+                
+                if (postRes.ok) {
+                    showToast(`Priorität aktualisiert: #${targetIdx + 1} ${temp.name}`);
+                    await fetchConsumers();
+                }
+            } catch (e) {
+                console.error("Error moving priority:", e);
+                showToast("Fehler beim Ändern der Priorität.");
+            } finally {
+                isReordering = false;
+            }
+        }
 
         function switchTab(tab) {
             document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
@@ -154,48 +202,71 @@
         }
 
         async function fetchConsumers() {
+            if (isReordering) return;
             try {
                 const res = await fetch('/api/consumers');
                 if (res.ok) {
                     const consumers = await res.json();
                     const container = document.getElementById('consumers-container');
                     
-                    // Cleanup removed elements if any, remove initial loading text
                     if (container.innerHTML.includes('Lädt Verbraucher')) {
                         container.innerHTML = '';
                     }
 
-                    const currentIds = new Set(consumers.map(c => 'cons-' + c.id));
+                    // Water heater is c.id === 'hw_1' (type === 'WaterHeater')
+                    const wh = consumers.find(c => c.id === 'hw_1' || c.type === 'WaterHeater');
+                    // Plugs sorted by priority
+                    const plugs = consumers.filter(c => c.id !== 'hw_1' && c.type !== 'WaterHeater');
+                    plugs.sort((a, b) => (a.priority || 100) - (b.priority || 100));
+
+                    const orderedConsumers = [];
+                    if (wh) orderedConsumers.push(wh);
+                    orderedConsumers.push(...plugs);
+
+                    const currentIds = new Set(orderedConsumers.map(c => 'cons-' + c.id));
                     Array.from(container.children).forEach(child => {
                         if (!currentIds.has(child.id)) {
                             child.remove();
                         }
                     });
 
-                    consumers.forEach(c => {
+                    orderedConsumers.forEach((c, idx) => {
                         const isPlug = c.type !== 'WaterHeater';
                         const statusClass = c.is_online ? 'online' : 'offline';
                         const statusText = c.is_online ? 'Online' : 'Offline';
                         const typeText = isPlug ? 'Smart Plug' : 'Relais';
                         const ipText = c.ip ? ` | IP: ${c.ip}` : '';
                         const isPlugDisabled = isPlug && c.is_enabled === false;
+                        const plugIdx = isPlug ? plugs.findIndex(p => p.id === c.id) : -1;
+                        const prioNum = isPlug ? (plugIdx + 1) : 0;
+                        const isFirstPlug = isPlug && (plugIdx === 0);
+                        const isLastPlug = isPlug && (plugIdx === plugs.length - 1);
 
                         let el = document.getElementById('cons-' + c.id);
                         if (!el) {
                             el = document.createElement('div');
                             el.id = 'cons-' + c.id;
-                            el.className = 'consumer-item';
+                            el.className = isPlug ? 'consumer-item' : 'consumer-item water-heater-item';
                             container.appendChild(el);
                             
                             if (isPlug) {
                                 el.innerHTML = `
-                                    <div class="consumer-info">
-                                        <h4><span class="status-dot ${statusClass}" title="${statusText}" id="dot-${c.id}"></span> 
-                                            <input type="text" class="form-control" style="display:inline-block; width: 250px; margin-left: 5px; padding: 2px;" id="name-${c.id}" value="${c.name}" onchange="saveDashboardPlugs()">
-                                        </h4>
-                                        <div class="consumer-meta" style="margin-top: 5px;">
-                                            ${typeText} ${ipText} | Leistung: 
-                                            <input type="number" class="form-control" style="display:inline-block; width: 80px; padding: 2px;" id="power-${c.id}" value="${c.power_w}" onchange="saveDashboardPlugs()"> W
+                                    <div class="consumer-left-group">
+                                        <div class="prio-wrapper">
+                                            <div class="prio-controls">
+                                                <button class="btn-prio" id="btn-up-${c.id}" title="Priorität erhöhen" onclick="movePlugPriority('${c.id}', -1)" ${isFirstPlug ? 'disabled' : ''}>▲</button>
+                                                <button class="btn-prio" id="btn-down-${c.id}" title="Priorität verringern" onclick="movePlugPriority('${c.id}', 1)" ${isLastPlug ? 'disabled' : ''}>▼</button>
+                                            </div>
+                                            <span class="prio-badge" id="prio-badge-${c.id}">Prio #${prioNum}</span>
+                                        </div>
+                                        <div class="consumer-info">
+                                            <h4><span class="status-dot ${statusClass}" title="${statusText}" id="dot-${c.id}"></span> 
+                                                <input type="text" class="form-control" style="display:inline-block; width: 230px; margin-left: 5px; padding: 2px;" id="name-${c.id}" value="${c.name}" onchange="saveDashboardPlugs()">
+                                            </h4>
+                                            <div class="consumer-meta" style="margin-top: 5px;">
+                                                ${typeText} ${ipText} | Leistung: 
+                                                <input type="number" class="form-control" style="display:inline-block; width: 80px; padding: 2px;" id="power-${c.id}" value="${c.power_w}" onchange="saveDashboardPlugs()"> W
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="consumer-controls">
@@ -221,9 +292,14 @@
                                 `;
                             } else {
                                 el.innerHTML = `
-                                    <div class="consumer-info">
-                                        <h4><span class="status-dot ${statusClass}" title="${statusText}" id="dot-${c.id}"></span> <span id="name-${c.id}">${c.name}</span></h4>
-                                        <div class="consumer-meta">${typeText} | <span id="power-text-${c.id}">${c.power_w}</span> W ${ipText}</div>
+                                    <div class="consumer-left-group">
+                                        <div class="prio-wrapper">
+                                            <span class="prio-badge fixed">★ Höchste Prio (Fest: Relais)</span>
+                                        </div>
+                                        <div class="consumer-info">
+                                            <h4><span class="status-dot ${statusClass}" title="${statusText}" id="dot-${c.id}"></span> <span id="name-${c.id}">${c.name}</span></h4>
+                                            <div class="consumer-meta">${typeText} | <span id="power-text-${c.id}">${c.power_w}</span> W ${ipText}</div>
+                                        </div>
                                     </div>
                                     <div class="consumer-controls">
                                         <div class="control-group">
@@ -244,6 +320,9 @@
                                 `;
                             }
                         } else {
+                            // Ensure element is in sorted order in container
+                            container.appendChild(el);
+
                             // Update live data silently
                             el.style.opacity = isPlugDisabled ? '0.6' : '1';
                             document.getElementById('dot-' + c.id).className = `status-dot ${statusClass}`;
@@ -254,7 +333,14 @@
                             pSw.checked = c.is_on;
                             pSw.disabled = !c.is_manual_override;
                             
-                            if (!isPlug) {
+                            if (isPlug) {
+                                const badgeEl = document.getElementById('prio-badge-' + c.id);
+                                if (badgeEl) badgeEl.textContent = `Prio #${prioNum}`;
+                                const btnUp = document.getElementById('btn-up-' + c.id);
+                                if (btnUp) btnUp.disabled = isFirstPlug;
+                                const btnDown = document.getElementById('btn-down-' + c.id);
+                                if (btnDown) btnDown.disabled = isLastPlug;
+                            } else {
                                 document.getElementById('name-' + c.id).textContent = c.name;
                                 document.getElementById('power-text-' + c.id).textContent = c.power_w;
                             }
@@ -341,15 +427,17 @@
                 let conf = await res.json();
                 
                 const newPlugs = [];
-                conf.plugs.forEach(p => {
+                (conf.plugs || []).forEach((p, idx) => {
                     const c_id = 'plug_' + p.ip.replace(/\./g, '_');
                     const nameEl = document.getElementById('name-' + c_id);
+                    const prio = p.priority !== undefined ? p.priority : (idx + 1);
                     if (nameEl) {
                         newPlugs.push({
                             name: nameEl.value,
                             ip: p.ip,
                             power_w: parseFloat(document.getElementById('power-' + c_id).value),
-                            is_enabled: document.getElementById('enabled-' + c_id).checked
+                            is_enabled: document.getElementById('enabled-' + c_id).checked,
+                            priority: prio
                         });
                         
                         // Update visual opacity immediately
@@ -360,6 +448,7 @@
                     }
                 });
                 
+                newPlugs.sort((a, b) => (a.priority || 100) - (b.priority || 100));
                 conf.plugs = newPlugs;
                 
                 const postRes = await fetch('/api/config', {

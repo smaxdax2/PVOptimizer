@@ -8,76 +8,88 @@
     },
     "plugs": [
         {
+            "name": "Switch_1_Heizung_Arbeitszimmer",
+            "ip": "192.168.178.101",
+            "power_w": 2000.0,
+            "is_enabled": true,
+            "priority": 1
+        },
+        {
             "name": "Switch_8_Ventilator",
             "ip": "192.168.178.110",
             "power_w": 100.0,
-            "is_enabled": false
+            "is_enabled": false,
+            "priority": 2
         },
         {
             "name": "Mess_Switch_3_Entfeuchter",
             "ip": "192.168.178.111",
             "power_w": 2000.0,
-            "is_enabled": true
+            "is_enabled": true,
+            "priority": 3
         },
         {
             "name": "Switch_2_Heizung_K\u00fcche",
             "ip": "192.168.178.102",
             "power_w": 2000.0,
-            "is_enabled": true
-        },
-        {
-            "name": "Switch_1_Heizung_Arbeitszimmer",
-            "ip": "192.168.178.101",
-            "power_w": 2000.0,
-            "is_enabled": true
+            "is_enabled": false,
+            "priority": 4
         },
         {
             "name": "Switch_4_Heizung_Bad",
             "ip": "192.168.178.104",
             "power_w": 1500.0,
-            "is_enabled": true
+            "is_enabled": true,
+            "priority": 5
         },
         {
             "name": "Switch_9_Heizl\u00fcfter_Dachboden",
             "ip": "192.168.178.112",
             "power_w": 2000.0,
-            "is_enabled": false
+            "is_enabled": false,
+            "priority": 6
         },
         {
             "name": "Switch_3_Luftbefeuchter",
             "ip": "192.168.178.103",
             "power_w": 100.0,
-            "is_enabled": true
+            "is_enabled": false,
+            "priority": 7
         },
         {
             "name": "Switch_6_Heizl\u00fcfter",
             "ip": "192.168.178.108",
             "power_w": 2000.0,
-            "is_enabled": false
-        },
-        {
-            "name": "Switch_5_GF",
-            "ip": "192.168.178.105",
-            "power_w": 100.0,
-            "is_enabled": false
-        },
-        {
-            "name": "Mess_Switch_1_L\u00fcftung",
-            "ip": "192.168.178.100",
-            "power_w": 100.0,
-            "is_enabled": false
-        },
-        {
-            "name": "Mess_Switch_2_Gefrierschrank",
-            "ip": "192.168.178.107",
-            "power_w": 100.0,
-            "is_enabled": false
+            "is_enabled": false,
+            "priority": 8
         },
         {
             "name": "Switch_7_Luftentfeuchter",
             "ip": "192.168.178.109",
             "power_w": 200.0,
-            "is_enabled": true
+            "is_enabled": true,
+            "priority": 9
+        },
+        {
+            "name": "Switch_5_GF",
+            "ip": "192.168.178.105",
+            "power_w": 100.0,
+            "is_enabled": false,
+            "priority": 10
+        },
+        {
+            "name": "Mess_Switch_1_L\u00fcftung",
+            "ip": "192.168.178.100",
+            "power_w": 100.0,
+            "is_enabled": false,
+            "priority": 11
+        },
+        {
+            "name": "Mess_Switch_2_Gefrierschrank",
+            "ip": "192.168.178.107",
+            "power_w": 100.0,
+            "is_enabled": false,
+            "priority": 12
         }
     ],
     "scan_interval_sec": 3600,

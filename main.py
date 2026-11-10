@@ -38,6 +38,7 @@ class PlugConfig(BaseModel):
     ip: str
     power_w: float
     is_enabled: bool = False
+    priority: int = 100
 
 class ConfigUpdate(BaseModel):
     fronius_ip: str
@@ -220,14 +221,19 @@ app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PV Optimizer")
+    parser.add_argument("--test", action="store_true", help="Run in test/simulation mode (mocks inverter and GPIO)")
     parser.add_argument("--mock-inverter", action="store_true", help="Mock the Fronius inverter")
     parser.add_argument("--mock-gpio", action="store_true", help="Mock the GPIO relays")
     parser.add_argument("--host", default="0.0.0.0", help="Host IP to bind to")
     parser.add_argument("--port", type=int, default=8000, help="Port to bind to")
     args = parser.parse_args()
     
-    mock_inverter_enabled = args.mock_inverter
-    mock_gpio_enabled = args.mock_gpio
+    if args.test:
+        mock_inverter_enabled = True
+        mock_gpio_enabled = True
+    else:
+        mock_inverter_enabled = args.mock_inverter
+        mock_gpio_enabled = args.mock_gpio
     
     # Needs to create directory for static files before running
     if not os.path.exists("static"):

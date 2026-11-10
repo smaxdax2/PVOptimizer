@@ -13,10 +13,11 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 class GenericConsumer:
-    def __init__(self, c_id: str, name: str, power_w: float):
+    def __init__(self, c_id: str, name: str, power_w: float, priority: int = 100):
         self.c_id = c_id
         self.name = name
         self.power_w = power_w
+        self.priority = priority
         self.is_on = False
         self.is_manual_override = False
         self.is_online = True  # Always true for Water Heater, updated for Plugs
@@ -32,6 +33,7 @@ class GenericConsumer:
             "id": self.c_id,
             "name": self.name,
             "power_w": self.power_w,
+            "priority": self.priority,
             "is_on": self.is_on,
             "is_manual_override": self.is_manual_override,
             "is_online": self.is_online,
@@ -41,7 +43,7 @@ class GenericConsumer:
 
 class WaterHeater(GenericConsumer):
     def __init__(self, c_id: str, name: str, power_w: float, gpio_pin: int, mock_gpio: bool = False):
-        super().__init__(c_id, name, power_w)
+        super().__init__(c_id, name, power_w, priority=0)
         self.gpio_pin = gpio_pin
         self.use_gpio = HAS_GPIO and not mock_gpio
         
@@ -77,8 +79,8 @@ class WaterHeater(GenericConsumer):
 
 
 class ConfiguredSmartPlug(GenericConsumer):
-    def __init__(self, c_id: str, name: str, ip: str, power_w: float, is_enabled: bool = False):
-        super().__init__(c_id, name, power_w)
+    def __init__(self, c_id: str, name: str, ip: str, power_w: float, is_enabled: bool = False, priority: int = 100):
+        super().__init__(c_id, name, power_w, priority=priority)
         self.ip = ip
         self.is_enabled = is_enabled
         self.device: KasaSmartPlug = None
@@ -152,15 +154,17 @@ class ConsumerManager:
         # Retain state if plugs already exist
         plugs_cfg = config.get("plugs", [])
         new_plugs = {}
-        for p in plugs_cfg:
+        for idx, p in enumerate(plugs_cfg):
             ip = p["ip"]
             c_id = f"plug_{ip.replace('.', '_')}"
+            priority = p.get("priority", idx + 1)
             if c_id in self.plugs:
                 # Update attributes but keep runtime state
                 plug = self.plugs[c_id]
                 plug.name = p["name"]
                 plug.power_w = p["power_w"]
                 plug.is_enabled = p.get("is_enabled", False)
+                plug.priority = priority
                 new_plugs[c_id] = plug
             else:
                 new_plugs[c_id] = ConfiguredSmartPlug(
@@ -168,7 +172,8 @@ class ConsumerManager:
                     name=p["name"],
                     ip=ip,
                     power_w=p.get("power_w", 1000),
-                    is_enabled=p.get("is_enabled", False)
+                    is_enabled=p.get("is_enabled", False),
+                    priority=priority
                 )
         self.plugs = new_plugs
 
@@ -176,20 +181,23 @@ class ConsumerManager:
         consumers = []
         if self.water_heater:
             consumers.append(self.water_heater)
-        consumers.extend(self.plugs.values())
+        sorted_plugs = sorted(self.plugs.values(), key=lambda p: (p.priority, p.name))
+        consumers.extend(sorted_plugs)
         return consumers
 
     def _trigger_config_save(self):
         if self.on_config_change:
-            # Rebuild plugs config list
+            # Rebuild plugs config list sorted by priority
+            sorted_plugs = sorted(self.plugs.values(), key=lambda p: (p.priority, p.name))
             plugs_list = [
                 {
                     "name": p.name,
                     "ip": p.ip,
                     "power_w": p.power_w,
-                    "is_enabled": p.is_enabled
+                    "is_enabled": p.is_enabled,
+                    "priority": p.priority
                 }
-                for p in self.plugs.values()
+                for p in sorted_plugs
             ]
             self.on_config_change(plugs_list)
 
@@ -221,7 +229,9 @@ class ConsumerManager:
                     logger.info(f"New plug discovered at {ip}, adding to configuration (disabled by default).")
                     c_id = f"plug_{ip.replace('.', '_')}"
                     alias = device.alias if device.alias else f"New Plug {ip}"
-                    new_plug = ConfiguredSmartPlug(c_id=c_id, name=alias, ip=ip, power_w=1000, is_enabled=False)
+                    existing_prios = [p.priority for p in self.plugs.values()]
+                    next_prio = (max(existing_prios) + 1) if existing_prios else 1
+                    new_plug = ConfiguredSmartPlug(c_id=c_id, name=alias, ip=ip, power_w=1000, is_enabled=False, priority=next_prio)
                     await new_plug.update_device(device)
                     self.plugs[c_id] = new_plug
                     config_changed = True
