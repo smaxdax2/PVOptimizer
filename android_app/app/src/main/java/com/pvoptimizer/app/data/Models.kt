@@ -18,6 +18,8 @@ data class Consumer(
     @SerializedName("is_on") val isOn: Boolean = false,
     @SerializedName("is_manual_override") val isManualOverride: Boolean = false,
     @SerializedName("is_online") val isOnline: Boolean = true,
+    @SerializedName("is_enabled") val isEnabled: Boolean = true,
+    @SerializedName("ip") val ip: String = "",
     @SerializedName("type") val type: String = "GenericConsumer"
 )
 

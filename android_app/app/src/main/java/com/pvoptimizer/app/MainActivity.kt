@@ -33,6 +33,7 @@ class MainActivity : ComponentActivity() {
                 var consumers by remember { mutableStateOf<List<Consumer>>(emptyList()) }
                 var authStatus by remember { mutableStateOf<AuthStatus?>(null) }
                 var isConnected by remember { mutableStateOf(false) }
+                var isScanning by remember { mutableStateOf(false) }
                 var errorMessage by remember { mutableStateOf<String?>(null) }
 
                 fun refreshData() {
@@ -78,6 +79,7 @@ class MainActivity : ComponentActivity() {
                     consumers = consumers,
                     authStatus = authStatus,
                     isConnected = isConnected,
+                    isScanning = isScanning,
                     errorMessage = errorMessage,
                     currentUrl = prefs.serverUrl,
                     currentPassword = prefs.password,
@@ -99,6 +101,27 @@ class MainActivity : ComponentActivity() {
                         lifecycleScope.launch {
                             client.setConsumerOverride(consumerId, isManual)
                             refreshData()
+                        }
+                    },
+                    onEnabledChange = { consumerId, isEnabled ->
+                        lifecycleScope.launch {
+                            client.setPlugEnabled(consumerId, isEnabled)
+                            refreshData()
+                        }
+                    },
+                    onMovePriority = { consumerId, direction ->
+                        lifecycleScope.launch {
+                            client.movePlugPriority(consumerId, direction)
+                            refreshData()
+                        }
+                    },
+                    onTriggerScan = {
+                        lifecycleScope.launch {
+                            isScanning = true
+                            client.triggerScan()
+                            delay(2500)
+                            refreshData()
+                            isScanning = false
                         }
                     }
                 )

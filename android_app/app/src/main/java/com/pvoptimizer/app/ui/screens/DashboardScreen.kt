@@ -3,7 +3,7 @@ package com.pvoptimizer.app.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -29,15 +29,22 @@ fun DashboardScreen(
     consumers: List<Consumer>,
     authStatus: AuthStatus?,
     isConnected: Boolean,
+    isScanning: Boolean = false,
     errorMessage: String?,
     currentUrl: String,
     currentPassword: String,
     onRefresh: () -> Unit,
     onSaveSettings: (url: String, password: String) -> Unit,
     onToggleConsumer: (consumerId: String, isOn: Boolean) -> Unit,
-    onOverrideConsumer: (consumerId: String, isManual: Boolean) -> Unit
+    onOverrideConsumer: (consumerId: String, isManual: Boolean) -> Unit,
+    onEnabledChange: (consumerId: String, isEnabled: Boolean) -> Unit,
+    onMovePriority: (consumerId: String, direction: Int) -> Unit,
+    onTriggerScan: () -> Unit
 ) {
     var showSettings by remember { mutableStateOf(false) }
+
+    val waterHeater = consumers.firstOrNull { it.type == "WaterHeater" || it.id == "hw_1" }
+    val plugs = consumers.filter { it.type != "WaterHeater" && it.id != "hw_1" }
 
     Scaffold(
         topBar = {
@@ -189,7 +196,7 @@ fun DashboardScreen(
                 }
             }
 
-            // Consumers Header
+            // Consumers Header + Search (Scan) Button
             item {
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
@@ -197,17 +204,44 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = "Intelligente Verbraucher",
-                        color = TextPrimary,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${consumers.size} Geräte",
-                        color = TextSecondary,
-                        fontSize = 13.sp
-                    )
+                    Column {
+                        Text(
+                            text = "Intelligente Verbraucher",
+                            color = TextPrimary,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${consumers.size} Geräte (${plugs.count { it.isEnabled }} aktiv)",
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    // Suchen (Scan) Button
+                    FilledTonalButton(
+                        onClick = onTriggerScan,
+                        enabled = !isScanning,
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = CardBorder,
+                            contentColor = TextPrimary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        if (isScanning) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                color = SolarGold,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Scan…", fontSize = 12.sp)
+                        } else {
+                            Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Suchen", fontSize = 12.sp)
+                        }
+                    }
                 }
             }
 
@@ -230,11 +264,27 @@ fun DashboardScreen(
                     }
                 }
             } else {
-                items(consumers, key = { it.id }) { consumer ->
+                // 1. Water Heater (always pinned to top if present)
+                if (waterHeater != null) {
+                    item(key = waterHeater.id) {
+                        ConsumerCard(
+                            consumer = waterHeater,
+                            onToggle = { isOn -> onToggleConsumer(waterHeater.id, isOn) },
+                            onOverrideChange = { isManual -> onOverrideConsumer(waterHeater.id, isManual) }
+                        )
+                    }
+                }
+
+                // 2. Smart Plugs (ordered by priority, with reordering & enable toggles)
+                itemsIndexed(plugs, key = { _, plug -> plug.id }) { index, plug ->
                     ConsumerCard(
-                        consumer = consumer,
-                        onToggle = { isOn -> onToggleConsumer(consumer.id, isOn) },
-                        onOverrideChange = { isManual -> onOverrideConsumer(consumer.id, isManual) }
+                        consumer = plug,
+                        plugIndex = index,
+                        totalPlugs = plugs.size,
+                        onToggle = { isOn -> onToggleConsumer(plug.id, isOn) },
+                        onOverrideChange = { isManual -> onOverrideConsumer(plug.id, isManual) },
+                        onEnabledChange = { isEnabled -> onEnabledChange(plug.id, isEnabled) },
+                        onMovePriority = { direction -> onMovePriority(plug.id, direction) }
                     )
                 }
             }

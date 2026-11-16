@@ -7,11 +7,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -23,16 +26,26 @@ import com.pvoptimizer.app.ui.theme.*
 @Composable
 fun ConsumerCard(
     consumer: Consumer,
+    plugIndex: Int = -1,
+    totalPlugs: Int = 0,
     onToggle: (Boolean) -> Unit,
     onOverrideChange: (Boolean) -> Unit,
+    onEnabledChange: ((Boolean) -> Unit)? = null,
+    onMovePriority: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isHeater = consumer.type == "WaterHeater"
     val accent = if (isHeater) BatteryCyan else SolarGold
     val statusColor = if (consumer.isOn) GridFeedIn else TextSecondary
+    val isEnabled = consumer.isEnabled
+
+    val isFirstPlug = plugIndex == 0
+    val isLastPlug = plugIndex >= 0 && plugIndex == totalPlugs - 1
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .alpha(if (!isHeater && !isEnabled) 0.6f else 1.0f),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = CardBg),
         border = BorderStroke(1.dp, if (consumer.isOn) accent.copy(alpha = 0.5f) else CardBorder)
@@ -42,7 +55,7 @@ fun ConsumerCard(
                 .padding(16.dp)
                 .fillMaxWidth()
         ) {
-            // Header: Name + Priority Badge
+            // Header: Left (Icon + Name + Priority) | Right (Power Badge)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -52,9 +65,10 @@ fun ConsumerCard(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
+                    // Consumer Icon
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(38.dp)
                             .clip(CircleShape)
                             .background(accent.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
@@ -63,7 +77,7 @@ fun ConsumerCard(
                             imageVector = if (isHeater) Icons.Default.WaterDrop else Icons.Default.Bolt,
                             contentDescription = null,
                             tint = accent,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
@@ -76,11 +90,43 @@ fun ConsumerCard(
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Text(
-                            text = if (isHeater) "Priorität 1 (Höchste)" else "Priorität ${consumer.priority}",
-                            color = TextSecondary,
-                            fontSize = 11.sp
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (isHeater) {
+                                Surface(
+                                    color = BatteryCyan.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(6.dp)
+                                ) {
+                                    Text(
+                                        text = "★ Höchste Prio (Fest: Relais)",
+                                        color = BatteryCyan,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            } else {
+                                Surface(
+                                    color = SolarGold.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(6.dp)
+                                ) {
+                                    Text(
+                                        text = "Priorität #${if (plugIndex >= 0) plugIndex + 1 else consumer.priority}",
+                                        color = SolarGold,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                                if (consumer.ip.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = consumer.ip,
+                                        color = TextSecondary,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -99,11 +145,76 @@ fun ConsumerCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-            HorizontalDivider(color = CardBorder, thickness = 1.dp)
-            Spacer(modifier = Modifier.height(12.dp))
+            // Priority reordering buttons (▲ Up and ▼ Down) for Smart Plugs
+            if (!isHeater && onMovePriority != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Reihenfolge anpassen:",
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(
+                            onClick = { onMovePriority(-1) },
+                            enabled = !isFirstPlug,
+                            modifier = Modifier.size(30.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.KeyboardArrowUp,
+                                contentDescription = "Priorität erhöhen",
+                                tint = if (!isFirstPlug) SolarGold else TextSecondary.copy(alpha = 0.3f)
+                            )
+                        }
+                        IconButton(
+                            onClick = { onMovePriority(1) },
+                            enabled = !isLastPlug,
+                            modifier = Modifier.size(30.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Priorität verringern",
+                                tint = if (!isLastPlug) SolarGold else TextSecondary.copy(alpha = 0.3f)
+                            )
+                        }
+                    }
 
-            // Footer: Mode badge (Auto vs Manual) + Switch
+                    // Aktiviert / Deaktiviert Switch
+                    if (onEnabledChange != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = if (isEnabled) "Aktiviert" else "Deaktiviert",
+                                color = if (isEnabled) GridFeedIn else TextSecondary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(end = 6.dp)
+                            )
+                            Switch(
+                                checked = isEnabled,
+                                onCheckedChange = onEnabledChange,
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = TextPrimary,
+                                    checkedTrackColor = GridFeedIn,
+                                    uncheckedThumbColor = TextSecondary,
+                                    uncheckedTrackColor = BgDark
+                                ),
+                                modifier = Modifier.height(24.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(color = CardBorder, thickness = 1.dp)
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Footer: Mode badge (Auto vs Manual) + On/Off Switch
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -141,7 +252,6 @@ fun ConsumerCard(
                     Switch(
                         checked = consumer.isOn,
                         onCheckedChange = { isChecked ->
-                            // If override is off, enabling manual switch turns override ON first
                             if (!consumer.isManualOverride) {
                                 onOverrideChange(true)
                             }

@@ -200,4 +200,116 @@ class PvApiClient(private val prefs: AppPreferences) {
             Result.failure(e)
         }
     }
+
+    suspend fun movePlugPriority(consumerId: String, direction: Int): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val configReq = Request.Builder().url("${baseUrl()}/api/config").get().build()
+            var configRes = client.newCall(configReq).execute()
+            if (configRes.code == 401 || configRes.code == 403) {
+                if (prefs.password.isNotEmpty() && login(prefs.password).isSuccess) {
+                    configRes = client.newCall(configReq).execute()
+                }
+            }
+            if (!configRes.isSuccessful) return@withContext Result.failure(Exception("Konfiguration konnte nicht geladen werden"))
+
+            val body = configRes.body?.string().orEmpty()
+            val jsonObject = gson.fromJson(body, com.google.gson.JsonObject::class.java)
+            val plugsArray = jsonObject.getAsJsonArray("plugs") ?: return@withContext Result.failure(Exception("Keine Steckdosen"))
+
+            val plugsList = mutableListOf<com.google.gson.JsonObject>()
+            for (i in 0 until plugsArray.size()) {
+                plugsList.add(plugsArray.get(i).asJsonObject)
+            }
+
+            plugsList.sortBy {
+                if (it.has("priority") && !it.get("priority").isJsonNull) it.get("priority").asInt else 100
+            }
+
+            val index = plugsList.indexOfFirst {
+                val ip = it.get("ip")?.asString.orEmpty()
+                val id = "plug_" + ip.replace('.', '_')
+                id == consumerId
+            }
+
+            if (index == -1) return@withContext Result.failure(Exception("Steckdose nicht gefunden"))
+            val targetIdx = index + direction
+            if (targetIdx < 0 || targetIdx >= plugsList.size) return@withContext Result.success(true)
+
+            val temp = plugsList[index]
+            plugsList[index] = plugsList[targetIdx]
+            plugsList[targetIdx] = temp
+
+            val newArray = com.google.gson.JsonArray()
+            plugsList.forEachIndexed { idx, obj ->
+                obj.addProperty("priority", idx + 1)
+                newArray.add(obj)
+            }
+            jsonObject.add("plugs", newArray)
+
+            val postReq = Request.Builder()
+                .url("${baseUrl()}/api/config")
+                .post(jsonObject.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            val postRes = client.newCall(postReq).execute()
+            Result.success(postRes.isSuccessful)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun setPlugEnabled(consumerId: String, isEnabled: Boolean): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val configReq = Request.Builder().url("${baseUrl()}/api/config").get().build()
+            var configRes = client.newCall(configReq).execute()
+            if (configRes.code == 401 || configRes.code == 403) {
+                if (prefs.password.isNotEmpty() && login(prefs.password).isSuccess) {
+                    configRes = client.newCall(configReq).execute()
+                }
+            }
+            if (!configRes.isSuccessful) return@withContext Result.failure(Exception("Konfiguration konnte nicht geladen werden"))
+
+            val body = configRes.body?.string().orEmpty()
+            val jsonObject = gson.fromJson(body, com.google.gson.JsonObject::class.java)
+            val plugsArray = jsonObject.getAsJsonArray("plugs") ?: return@withContext Result.failure(Exception("Keine Steckdosen"))
+
+            for (i in 0 until plugsArray.size()) {
+                val obj = plugsArray.get(i).asJsonObject
+                val ip = obj.get("ip")?.asString.orEmpty()
+                val id = "plug_" + ip.replace('.', '_')
+                if (id == consumerId) {
+                    obj.addProperty("is_enabled", isEnabled)
+                }
+            }
+
+            val postReq = Request.Builder()
+                .url("${baseUrl()}/api/config")
+                .post(jsonObject.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            val postRes = client.newCall(postReq).execute()
+            Result.success(postRes.isSuccessful)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun triggerScan(): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val postReq = Request.Builder()
+                .url("${baseUrl()}/api/scan")
+                .post("{}".toRequestBody(jsonMediaType))
+                .build()
+
+            var postRes = client.newCall(postReq).execute()
+            if (postRes.code == 401 || postRes.code == 403) {
+                if (prefs.password.isNotEmpty() && login(prefs.password).isSuccess) {
+                    postRes = client.newCall(postReq).execute()
+                }
+            }
+            Result.success(postRes.isSuccessful)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
