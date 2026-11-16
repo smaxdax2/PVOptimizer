@@ -50,7 +50,10 @@ class PvApiClient(private val prefs: AppPreferences) {
 
     private fun baseUrl(): String {
         var url = prefs.serverUrl.trim().trimEnd('/')
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        // If user entered http:// with a myfritz domain, upgrade to https:// because MyFRITZ uses port 443
+        if (url.startsWith("http://") && url.contains("myfritz.net") && !url.substringAfter("http://").contains(":")) {
+            url = "https://" + url.removePrefix("http://")
+        } else if (!url.startsWith("http://") && !url.startsWith("https://")) {
             url = "https://$url"
         }
         return url
@@ -93,7 +96,13 @@ class PvApiClient(private val prefs: AppPreferences) {
                 .get()
                 .build()
 
-            val response = client.newCall(request).execute()
+            var response = client.newCall(request).execute()
+            if (response.code == 401 || response.code == 403) {
+                if (prefs.password.isNotEmpty() && login(prefs.password).isSuccess) {
+                    response = client.newCall(request).execute()
+                }
+            }
+
             if (!response.isSuccessful) {
                 return@withContext Result.failure(Exception("Fehler beim Abrufen der Verbraucher: ${response.code}"))
             }
@@ -115,7 +124,13 @@ class PvApiClient(private val prefs: AppPreferences) {
                 .get()
                 .build()
 
-            val response = client.newCall(request).execute()
+            var response = client.newCall(request).execute()
+            if (response.code == 401 || response.code == 403) {
+                if (prefs.password.isNotEmpty() && login(prefs.password).isSuccess) {
+                    response = client.newCall(request).execute()
+                }
+            }
+
             if (!response.isSuccessful) {
                 return@withContext Result.failure(Exception("HTTP ${response.code}"))
             }
