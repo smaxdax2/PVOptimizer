@@ -428,6 +428,29 @@ input[type=range]::-webkit-slider-runnable-track {
     font-weight: 500;
 }
 
+.auth-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+    margin-right: 0.5rem;
+}
+
+.auth-pill.local {
+    background: rgba(46, 160, 67, 0.15);
+    color: #3fb950;
+    border: 1px solid rgba(46, 160, 67, 0.35);
+}
+
+.auth-pill.remote {
+    background: rgba(88, 166, 255, 0.15);
+    color: #58a6ff;
+    border: 1px solid rgba(88, 166, 255, 0.35);
+}
+
 @media (max-width: 768px) {
     body { padding: 1rem; }
     .header { flex-direction: column; align-items: flex-start; gap: 1rem; }

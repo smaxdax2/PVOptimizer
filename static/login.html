@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PV Optimizer — Anmeldung</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .login-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 70vh;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 440px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 2.2rem;
+            box-shadow: 0 16px 36px rgba(0,0,0,0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .login-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            display: inline-block;
+        }
+
+        .remote-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(210, 153, 34, 0.15);
+            border: 1px solid rgba(210, 153, 34, 0.4);
+            color: #e3b341;
+            font-size: 0.78rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+            margin-top: 0.5rem;
+        }
+
+        .ip-info {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.6rem;
+            text-align: center;
+        }
+
+        .error-box {
+            background: rgba(218, 54, 51, 0.15);
+            border: 1px solid rgba(218, 54, 51, 0.4);
+            color: #ff7b72;
+            padding: 0.8rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            margin-bottom: 1.2rem;
+            display: none;
+        }
+
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .btn-block {
+            width: 100%;
+            margin-top: 1.5rem;
+            padding: 0.8rem;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="brand">☀️ PV Optimizer</div>
+    </div>
+
+    <div class="login-wrapper">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-icon">🔒</div>
+                <h2>Fernzugriff Anmeldung</h2>
+                <div class="remote-badge">
+                    <span>🌐</span> Externer Zugriff erkannt
+                </div>
+                <div class="ip-info" id="client-ip-display">Verbindung wird geprüft...</div>
+            </div>
+
+            <div class="error-box" id="error-box"></div>
+
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="password">Passwort / PIN</label>
+                    <input type="password" id="password" class="form-control" placeholder="Dashboard Passwort eingeben" required autofocus>
+                </div>
+
+                <label class="form-check">
+                    <input type="checkbox" id="remember" checked style="transform: scale(1.15);">
+                    <span>Auf diesem Gerät 30 Tage angemeldet bleiben</span>
+                </label>
+
+                <button type="submit" class="btn primary btn-block" id="btn-submit">Anmelden</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Check current auth status on load
+        async function checkStatus() {
+            try {
+                const res = await fetch('/api/auth/status');
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('client-ip-display').textContent = `Ihre IP: ${data.client_ip || 'Unbekannt'}`;
+                    // If caller is actually local or already authenticated, redirect straight to dashboard
+                    if (data.is_local || data.is_authenticated) {
+                        window.location.href = '/';
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit');
+            const errBox = document.getElementById('error-box');
+            const pwd = document.getElementById('password').value;
+            const remember = document.getElementById('remember').checked;
+
+            btn.disabled = true;
+            btn.textContent = 'Prüfe...';
+            errBox.style.display = 'none';
+
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const nextUrl = urlParams.get('next') || '/';
+
+                const res = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pwd, remember: remember })
+                });
+
+                const data = await res.json();
+                if (res.ok && data.status === 'success') {
+                    window.location.href = nextUrl;
+                } else {
+                    errBox.textContent = data.detail || 'Falsches Passwort. Bitte erneut versuchen.';
+                    errBox.style.display = 'block';
+                    document.getElementById('password').focus();
+                }
+            } catch (err) {
+                errBox.textContent = 'Verbindungsfehler beim Anmelden.';
+                errBox.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Anmelden';
+            }
+        }
+
+        checkStatus();
+    </script>
+</body>
+</html>

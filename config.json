@@ -93,5 +93,16 @@
         }
     ],
     "scan_interval_sec": 3600,
-    "optimize_interval_sec": 60
+    "optimize_interval_sec": 60,
+    "auth": {
+        "enabled": true,
+        "password_hash": "ed83ffe2eb5ddd053a9d49fbd9c1b47d$7c3b7352fc89c9d89830b2a2622554d77313c1290525c6623d8597954a82c560",
+        "session_secret": "b516ae5dbdc45c8d904ba00008c0ef27167dc70df6c7c4687f80e70f2b10fa91",
+        "trusted_subnets": [
+            "192.168.0.0/16",
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "127.0.0.0/8"
+        ]
+    }
 }

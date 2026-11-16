@@ -13,9 +13,11 @@
     <div class="header">
         <div class="brand">☀️ PV Optimizer</div>
         <div class="nav-links">
+            <span id="auth-pill" class="auth-pill" style="display:none;"></span>
             <a href="#" class="active" onclick="switchTab('dashboard')">Dashboard</a>
             <a href="#" onclick="switchTab('config')">Konfiguration</a>
             <a href="/test.html" target="_blank" id="nav-simulator">Simulator</a>
+            <a href="#" onclick="doLogout(event)" id="nav-logout" style="display:none; color: var(--danger); font-size: 0.9rem;">Abmelden</a>
         </div>
     </div>
 
@@ -91,6 +93,17 @@
                     <div class="form-group">
                         <label>GPIO Pin</label>
                         <input type="number" id="cfg-wh-pin" class="form-control" required>
+                    </div>
+                </div>
+
+                <h3>Fernzugriff &amp; Sicherheit</h3>
+                <div class="grid-dash">
+                    <div class="form-group">
+                        <label>Neues Passwort für Fernzugriff</label>
+                        <input type="password" id="cfg-new-pwd" class="form-control" placeholder="Neues Passwort eingeben (min. 4 Zeichen)">
+                    </div>
+                    <div class="form-group" style="display:flex; align-items:flex-end;">
+                        <button type="button" class="btn" onclick="saveNewPassword()">Passwort speichern</button>
                     </div>
                 </div>
 
@@ -499,6 +512,67 @@
             }
         }
 
+        async function checkAuthStatus() {
+            try {
+                const res = await fetch('/api/auth/status');
+                if (res.ok) {
+                    const data = await res.json();
+                    const pill = document.getElementById('auth-pill');
+                    const logoutBtn = document.getElementById('nav-logout');
+                    if (data.is_local) {
+                        pill.className = 'auth-pill local';
+                        pill.innerHTML = '<span>🏠</span> Heimnetz';
+                        pill.title = 'Lokaler Zugriff ohne Passwort (' + data.client_ip + ')';
+                        pill.style.display = 'inline-flex';
+                        logoutBtn.style.display = 'none';
+                    } else if (data.is_authenticated) {
+                        pill.className = 'auth-pill remote';
+                        pill.innerHTML = '<span>🌐</span> Fernzugriff';
+                        pill.title = 'Angemeldet über Internet (' + data.client_ip + ')';
+                        pill.style.display = 'inline-flex';
+                        logoutBtn.style.display = 'inline-block';
+                    }
+                }
+            } catch (e) {
+                console.error('Error checking auth status', e);
+            }
+        }
+
+        async function doLogout(e) {
+            if (e) e.preventDefault();
+            try {
+                await fetch('/logout', { method: 'POST' });
+                window.location.href = '/login';
+            } catch (err) {
+                window.location.href = '/login';
+            }
+        }
+
+        async function saveNewPassword() {
+            const pwdInput = document.getElementById('cfg-new-pwd');
+            const newPwd = pwdInput.value;
+            if (!newPwd || newPwd.length < 4) {
+                alert('Das Passwort muss mindestens 4 Zeichen lang sein.');
+                return;
+            }
+            try {
+                const res = await fetch('/api/auth/password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_password: newPwd })
+                });
+                const data = await res.json();
+                if (res.ok && data.status === 'success') {
+                    showToast('Passwort erfolgreich geändert!');
+                    pwdInput.value = '';
+                } else {
+                    alert(data.detail || 'Fehler beim Ändern des Passworts.');
+                }
+            } catch (err) {
+                alert('Netzwerkfehler beim Speichern des Passworts.');
+            }
+        }
+
         // Loop
         setInterval(() => {
             if (!document.getElementById('dashboard-view').classList.contains('hidden')) {
@@ -511,6 +585,7 @@
         fetchStatus();
         fetchConsumers();
         loadConfig();
+        checkAuthStatus();
     </script>
 </body>
 
