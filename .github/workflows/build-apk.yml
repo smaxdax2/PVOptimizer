@@ -7,6 +7,9 @@ on:
       - '.github/workflows/build-apk.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-apk:
     name: Build Debug APK
@@ -42,3 +45,18 @@ jobs:
           name: PVOptimizer-App
           path: android_app/app/build/outputs/apk/debug/PVOptimizer.apk
           if-no-files-found: error
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: "PV Optimizer Android App v1.0.0"
+          body: |
+            ### ☀️ PV Optimizer Android App (v1.0.0)
+            - 📊 Live Kacheln für Solar, Netz (Einspeisung/Bezug), Batterie und Hausverbrauch
+            - ⚡ Intelligente Verbraucher-Steuerung (Wasserboiler, Kasa Plugs) & Automatik/Manuell-Modus
+            - 📱 Android Homescreen Live-Widget
+            - 🔒 Sichere Verbindung über MyFRITZ! (HTTPS) & lokales WLAN
+          files: android_app/app/build/outputs/apk/debug/PVOptimizer.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
