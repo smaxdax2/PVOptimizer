@@ -100,7 +100,7 @@ fun ConsumerCard(
             }
 
             Spacer(modifier = Modifier.height(14.dp))
-            Divider(color = CardBorder, thickness = 1.dp)
+            HorizontalDivider(color = CardBorder, thickness = 1.dp)
             Spacer(modifier = Modifier.height(12.dp))
 
             // Footer: Mode badge (Auto vs Manual) + Switch
@@ -126,9 +126,7 @@ fun ConsumerCard(
                         containerColor = BgDark,
                         labelColor = TextSecondary
                     ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        borderColor = if (consumer.isManualOverride) accent else CardBorder
-                    )
+                    border = BorderStroke(1.dp, if (consumer.isManualOverride) accent else CardBorder)
                 )
 
                 // On/Off Switch
