@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">PV Optimizer</string>
+    <string name="widget_name">PV Optimizer Status</string>
+    <string name="pv_power_label">Photovoltaik</string>
+    <string name="grid_power_label">Netz</string>
+    <string name="battery_label">Batterie</string>
+    <string name="home_label">Hausverbrauch</string>
+    <string name="consumers_title">Intelligente Verbraucher</string>
+    <string name="settings_title">Verbindungseinstellungen</string>
+    <string name="server_url">Server-Adresse (URL)</string>
+    <string name="password">Fernzugriff-Passwort</string>
+    <string name="save">Speichern</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="connected">Verbunden</string>
+    <string name="connecting">Verbinde…</string>
+    <string name="disconnected">Nicht verbunden</string>
+</resources>
