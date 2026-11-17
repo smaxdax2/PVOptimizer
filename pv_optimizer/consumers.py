@@ -143,13 +143,17 @@ class ConsumerManager:
         # Setup Water Heater
         wh_cfg = config.get("water_heater", {})
         if wh_cfg:
-            self.water_heater = WaterHeater(
-                c_id="hw_1",
-                name=wh_cfg.get("name", "Warmwasser"),
-                power_w=wh_cfg.get("power_w", 3500),
-                gpio_pin=wh_cfg.get("gpio_pin", 17),
-                mock_gpio=mock_gpio
-            )
+            if self.water_heater and self.water_heater.gpio_pin == wh_cfg.get("gpio_pin", 17):
+                self.water_heater.name = wh_cfg.get("name", "Warmwasser")
+                self.water_heater.power_w = wh_cfg.get("power_w", 3500)
+            else:
+                self.water_heater = WaterHeater(
+                    c_id="hw_1",
+                    name=wh_cfg.get("name", "Warmwasser"),
+                    power_w=wh_cfg.get("power_w", 3500),
+                    gpio_pin=wh_cfg.get("gpio_pin", 17),
+                    mock_gpio=mock_gpio
+                )
 
         # Retain state if plugs already exist
         plugs_cfg = config.get("plugs", [])

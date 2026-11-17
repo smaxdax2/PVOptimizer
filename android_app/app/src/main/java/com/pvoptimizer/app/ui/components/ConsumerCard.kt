@@ -2,22 +2,25 @@ package com.pvoptimizer.app.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pvoptimizer.app.data.Consumer
@@ -30,6 +33,7 @@ fun ConsumerCard(
     totalPlugs: Int = 0,
     onToggle: (Boolean) -> Unit,
     onOverrideChange: (Boolean) -> Unit,
+    onPowerChange: ((Double) -> Unit)? = null,
     onEnabledChange: ((Boolean) -> Unit)? = null,
     onMovePriority: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -41,6 +45,8 @@ fun ConsumerCard(
 
     val isFirstPlug = plugIndex == 0
     val isLastPlug = plugIndex >= 0 && plugIndex == totalPlugs - 1
+
+    var showEditPowerDialog by remember { mutableStateOf(false) }
 
     Card(
         modifier = modifier
@@ -55,7 +61,7 @@ fun ConsumerCard(
                 .padding(16.dp)
                 .fillMaxWidth()
         ) {
-            // Header: Left (Icon + Name + Priority) | Right (Power Badge)
+            // Header: Left (Icon + Name + Priority) | Right (Editable Power Badge)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -130,18 +136,40 @@ fun ConsumerCard(
                     }
                 }
 
-                // Power consumption badge
+                // Editable Power consumption badge (always displays configured W, clickable to edit)
                 Surface(
-                    color = if (consumer.isOn) GridFeedIn.copy(alpha = 0.15f) else CardBorder.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(8.dp)
+                    color = if (consumer.isOn) GridFeedIn.copy(alpha = 0.15f) else BgDark,
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(
+                        1.dp,
+                        if (consumer.isOn) GridFeedIn.copy(alpha = 0.5f) else CardBorder
+                    ),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(enabled = onPowerChange != null) {
+                            showEditPowerDialog = true
+                        }
                 ) {
-                    Text(
-                        text = if (consumer.isOn) "%.0f W".format(consumer.powerW) else "Aus (0 W)",
-                        color = if (consumer.isOn) GridFeedIn else TextSecondary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "%.0f W".format(consumer.powerW),
+                            color = if (consumer.isOn) GridFeedIn else TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        if (onPowerChange != null) {
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Leistung bearbeiten",
+                                tint = SolarGold,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -267,5 +295,74 @@ fun ConsumerCard(
                 }
             }
         }
+    }
+
+    if (showEditPowerDialog && onPowerChange != null) {
+        var powerText by remember(consumer.powerW) {
+            mutableStateOf("%.0f".format(consumer.powerW))
+        }
+
+        AlertDialog(
+            onDismissRequest = { showEditPowerDialog = false },
+            containerColor = CardBg,
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Text(
+                    text = "⚡ Leistung anpassen",
+                    color = TextPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Nennleistung für „${consumer.name}“ in Watt (W) festlegen:",
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    OutlinedTextField(
+                        value = powerText,
+                        onValueChange = { powerText = it.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' } },
+                        label = { Text("Leistung (W)") },
+                        suffix = { Text("W", color = TextSecondary) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = SolarGold,
+                            unfocusedBorderColor = CardBorder,
+                            focusedLabelColor = SolarGold,
+                            unfocusedLabelColor = TextSecondary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val parsed = powerText.replace(',', '.').toDoubleOrNull()
+                        if (parsed != null && parsed >= 0.0) {
+                            onPowerChange(parsed)
+                            showEditPowerDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SolarGold,
+                        contentColor = BgDark
+                    )
+                ) {
+                    Text("Speichern", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditPowerDialog = false }) {
+                    Text("Abbrechen", color = TextSecondary)
+                }
+            }
+        )
     }
 }

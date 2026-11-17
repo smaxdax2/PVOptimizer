@@ -37,6 +37,7 @@ fun DashboardScreen(
     onSaveSettings: (url: String, password: String) -> Unit,
     onToggleConsumer: (consumerId: String, isOn: Boolean) -> Unit,
     onOverrideConsumer: (consumerId: String, isManual: Boolean) -> Unit,
+    onPowerChange: (consumerId: String, powerW: Double) -> Unit,
     onEnabledChange: (consumerId: String, isEnabled: Boolean) -> Unit,
     onMovePriority: (consumerId: String, direction: Int) -> Unit,
     onTriggerScan: () -> Unit
@@ -270,7 +271,8 @@ fun DashboardScreen(
                         ConsumerCard(
                             consumer = waterHeater,
                             onToggle = { isOn -> onToggleConsumer(waterHeater.id, isOn) },
-                            onOverrideChange = { isManual -> onOverrideConsumer(waterHeater.id, isManual) }
+                            onOverrideChange = { isManual -> onOverrideConsumer(waterHeater.id, isManual) },
+                            onPowerChange = { newPower -> onPowerChange(waterHeater.id, newPower) }
                         )
                     }
                 }
@@ -283,6 +285,7 @@ fun DashboardScreen(
                         totalPlugs = plugs.size,
                         onToggle = { isOn -> onToggleConsumer(plug.id, isOn) },
                         onOverrideChange = { isManual -> onOverrideConsumer(plug.id, isManual) },
+                        onPowerChange = { newPower -> onPowerChange(plug.id, newPower) },
                         onEnabledChange = { isEnabled -> onEnabledChange(plug.id, isEnabled) },
                         onMovePriority = { direction -> onMovePriority(plug.id, direction) }
                     )

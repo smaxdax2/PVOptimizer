@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext HTTP traffic so local IP connections (e.g. http://192.168.178.x:8000) work smoothly -->
+    <!-- Allow cleartext HTTP traffic and user/self-signed certs for local IP & MyFRITZ connections -->
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
+            <certificates src="user" />
         </trust-anchors>
     </base-config>
 </network-security-config>

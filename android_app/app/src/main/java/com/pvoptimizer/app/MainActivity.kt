@@ -103,6 +103,12 @@ class MainActivity : ComponentActivity() {
                             refreshData()
                         }
                     },
+                    onPowerChange = { consumerId, newPowerW ->
+                        lifecycleScope.launch {
+                            client.setConsumerPower(consumerId, newPowerW)
+                            refreshData()
+                        }
+                    },
                     onEnabledChange = { consumerId, isEnabled ->
                         lifecycleScope.launch {
                             client.setPlugEnabled(consumerId, isEnabled)
