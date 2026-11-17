@@ -14,11 +14,13 @@ import com.pvoptimizer.app.ui.theme.*
 @Composable
 fun SettingsDialog(
     initialUrl: String,
+    initialLocalUrl: String,
     initialPassword: String,
     onDismiss: () -> Unit,
-    onSave: (url: String, password: String) -> Unit
+    onSave: (url: String, localUrl: String, password: String) -> Unit
 ) {
     var urlText by remember { mutableStateOf(initialUrl) }
+    var localUrlText by remember { mutableStateOf(initialLocalUrl) }
     var passwordText by remember { mutableStateOf(initialPassword) }
 
     AlertDialog(
@@ -36,17 +38,17 @@ fun SettingsDialog(
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Geben Sie Ihre MyFRITZ!-Adresse oder die lokale Raspberry Pi IP-Adresse ein:",
+                    text = "Geben Sie Ihre MyFRITZ!-Adresse (für unterwegs) und optional die lokale Raspberry Pi IP-Adresse (für das Heimnetz) ein:",
                     color = TextSecondary,
                     fontSize = 13.sp
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 OutlinedTextField(
                     value = urlText,
                     onValueChange = { urlText = it },
-                    label = { Text("Server-URL") },
+                    label = { Text("MyFRITZ! / Server-URL") },
                     placeholder = { Text("https://dein-pi.myfritz.net") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -60,7 +62,26 @@ fun SettingsDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = localUrlText,
+                    onValueChange = { localUrlText = it },
+                    label = { Text("Lokale IP im Heimnetz (optional)") },
+                    placeholder = { Text("Wird automatisch erkannt (z.B. 192.168.178.50:8000)") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = SolarGold,
+                        unfocusedBorderColor = CardBorder,
+                        focusedLabelColor = SolarGold,
+                        unfocusedLabelColor = TextSecondary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 OutlinedTextField(
                     value = passwordText,
@@ -83,7 +104,7 @@ fun SettingsDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "💡 Im Heimnetz (WLAN) ist kein Passwort erforderlich. Von unterwegs schützt dieses Passwort Ihren Zugang.",
+                    text = "💡 Im Heimnetz (WLAN) sucht die App den Raspberry Pi automatisch im lokalen Netz (192.168.178.x:8000). Von unterwegs wird die MyFRITZ!-Adresse genutzt.",
                     color = TextSecondary,
                     fontSize = 11.sp
                 )
@@ -91,7 +112,7 @@ fun SettingsDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onSave(urlText, passwordText) },
+                onClick = { onSave(urlText, localUrlText, passwordText) },
                 colors = ButtonDefaults.buttonColors(containerColor = SolarGold, contentColor = BgDark)
             ) {
                 Text("Speichern", fontWeight = FontWeight.Bold)

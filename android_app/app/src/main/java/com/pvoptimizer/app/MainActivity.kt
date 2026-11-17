@@ -82,10 +82,12 @@ class MainActivity : ComponentActivity() {
                     isScanning = isScanning,
                     errorMessage = errorMessage,
                     currentUrl = prefs.serverUrl,
+                    currentLocalUrl = prefs.localServerUrl,
                     currentPassword = prefs.password,
                     onRefresh = { refreshData() },
-                    onSaveSettings = { newUrl, newPassword ->
+                    onSaveSettings = { newUrl, newLocalUrl, newPassword ->
                         prefs.serverUrl = newUrl
+                        prefs.localServerUrl = newLocalUrl
                         prefs.password = newPassword
                         prefs.clearSession()
                         client = PvApiClient(prefs)

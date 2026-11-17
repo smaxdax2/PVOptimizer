@@ -4,18 +4,30 @@ import android.annotation.SuppressLint
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.Cookie
 import okhttp3.CookieJar
+import okhttp3.Dns
 import okhttp3.HttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import java.net.Inet4Address
+import java.net.Inet6Address
+import java.net.InetAddress
+import java.net.NetworkInterface
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
+import java.util.Collections
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
@@ -44,96 +56,236 @@ class PvApiClient(private val prefs: AppPreferences) {
         init(null, arrayOf<TrustManager>(trustAllManager), SecureRandom())
     }
 
-    // In-memory + persistent cookie jar for pv_session, configured to accept self-signed certificates
+    private val cookieJar = object : CookieJar {
+        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+            for (cookie in cookies) {
+                if (cookie.name == "pv_session") {
+                    prefs.sessionCookie = cookie.value
+                }
+            }
+        }
+
+        override fun loadForRequest(url: HttpUrl): List<Cookie> {
+            val token = prefs.sessionCookie
+            if (token.isNotEmpty()) {
+                return listOf(
+                    Cookie.Builder()
+                        .name("pv_session")
+                        .value(token)
+                        .domain(url.host)
+                        .path("/")
+                        .build()
+                )
+            }
+            return emptyList()
+        }
+    }
+
+    // Prefer IPv6 (AAAA) for myfritz.net domains because under DS-Lite the IPv4 (A) record
+    // points to the FRITZ!Box / CGNAT (93.104.x.x) instead of the Raspberry Pi.
+    private val smartDns = object : Dns {
+        override fun lookup(hostname: String): List<InetAddress> {
+            val addresses = Dns.SYSTEM.lookup(hostname)
+            if (hostname.contains("myfritz.net", ignoreCase = true)) {
+                return addresses.sortedBy { if (it is Inet6Address) 0 else 1 }
+            }
+            return addresses
+        }
+    }
+
+    // Main HTTP client
     private val client: OkHttpClient = OkHttpClient.Builder()
         .sslSocketFactory(sslContext.socketFactory, trustAllManager)
         .hostnameVerifier { _, _ -> true }
-        .connectTimeout(6, TimeUnit.SECONDS)
+        .dns(smartDns)
+        .connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(6, TimeUnit.SECONDS)
-        .cookieJar(object : CookieJar {
-            override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-                for (cookie in cookies) {
-                    if (cookie.name == "pv_session") {
-                        prefs.sessionCookie = cookie.value
+        .cookieJar(cookieJar)
+        .build()
+
+    // Fast HTTP client for local LAN probing
+    private val fastLanClient: OkHttpClient = client.newBuilder()
+        .connectTimeout(400, TimeUnit.MILLISECONDS)
+        .readTimeout(800, TimeUnit.MILLISECONDS)
+        .build()
+
+    private fun getLocalWifiSubnetPrefix(): String? {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces() ?: return null
+            for (intf in Collections.list(interfaces)) {
+                if (!intf.isUp || intf.isLoopback) continue
+                for (addr in Collections.list(intf.inetAddresses)) {
+                    if (addr is Inet4Address && !addr.isLoopbackAddress) {
+                        val ip = addr.hostAddress ?: continue
+                        if (ip.startsWith("192.168.")) {
+                            return ip.substringBeforeLast('.')
+                        }
                     }
                 }
             }
+        } catch (_: Exception) {}
+        return null
+    }
 
-            override fun loadForRequest(url: HttpUrl): List<Cookie> {
-                val token = prefs.sessionCookie
-                if (token.isNotEmpty()) {
-                    return listOf(
-                        Cookie.Builder()
-                            .name("pv_session")
-                            .value(token)
-                            .domain(url.host)
-                            .path("/")
-                            .build()
-                    )
-                }
-                return emptyList()
-            }
-        })
-        .build()
-
-    private fun candidateBaseUrls(): List<String> {
-        val raw = prefs.serverUrl.trim().trimEnd('/')
-        if (raw.isEmpty()) {
-            return listOf("http://192.168.178.1:8000")
-        }
-
-        val hostPort = raw.removePrefix("https://").removePrefix("http://").trimEnd('/')
+    private fun normalizeLocalUrl(rawLocal: String): List<String> {
+        val clean = rawLocal.trim().trimEnd('/')
+        if (clean.isEmpty()) return emptyList()
+        val hostPort = clean.removePrefix("http://").removePrefix("https://").trimEnd('/')
         val hostOnly = hostPort.substringBefore(':')
         val hasPort = hostPort.contains(':')
-        val isLocalHost = hostOnly.startsWith("192.168.") ||
-            hostOnly.startsWith("10.") ||
-            hostOnly.startsWith("172.") ||
-            hostOnly.equals("localhost", ignoreCase = true) ||
-            hostOnly.endsWith(".local", ignoreCase = true) ||
-            hostOnly.endsWith(".fritz.box", ignoreCase = true)
+        val list = mutableListOf<String>()
+        if (hasPort) {
+            list.add("http://$hostPort")
+            list.add("https://$hostPort")
+        } else {
+            list.add("http://$hostOnly:8000")
+            list.add("http://$hostOnly")
+            list.add("https://$hostOnly")
+        }
+        return list.distinct()
+    }
 
+    private fun candidateBaseUrls(): List<String> {
         val candidates = mutableListOf<String>()
         resolvedBaseUrl?.let { candidates.add(it) }
 
-        when {
-            raw.startsWith("https://") -> {
-                candidates.add("https://$hostPort")
-                candidates.add("http://$hostPort")
-                if (!hasPort) {
-                    candidates.add("http://$hostOnly:8000")
-                }
-            }
-            raw.startsWith("http://") -> {
-                if (raw.contains("myfritz.net") && !hasPort) {
+        // If a local server URL is saved (or auto-discovered), try it first when on Wi-Fi
+        if (prefs.localServerUrl.isNotEmpty()) {
+            candidates.addAll(normalizeLocalUrl(prefs.localServerUrl))
+        }
+
+        val raw = prefs.serverUrl.trim().trimEnd('/')
+        if (raw.isNotEmpty()) {
+            val hostPort = raw.removePrefix("https://").removePrefix("http://").trimEnd('/')
+            val hostOnly = hostPort.substringBefore(':')
+            val hasPort = hostPort.contains(':')
+            val isLocalHost = hostOnly.startsWith("192.168.") ||
+                hostOnly.startsWith("10.") ||
+                hostOnly.startsWith("172.") ||
+                hostOnly.equals("localhost", ignoreCase = true) ||
+                hostOnly.endsWith(".local", ignoreCase = true) ||
+                hostOnly.endsWith(".fritz.box", ignoreCase = true)
+
+            when {
+                raw.startsWith("https://") -> {
                     candidates.add("https://$hostPort")
                     candidates.add("http://$hostPort")
-                    candidates.add("http://$hostOnly:8000")
-                } else {
-                    candidates.add("http://$hostPort")
-                    candidates.add("https://$hostPort")
                     if (!hasPort) {
                         candidates.add("http://$hostOnly:8000")
                     }
                 }
-            }
-            else -> {
-                if (isLocalHost || hostPort.endsWith(":8000") || hostPort.endsWith(":80")) {
-                    candidates.add("http://$hostPort")
-                    if (!hasPort) {
+                raw.startsWith("http://") -> {
+                    if (raw.contains("myfritz.net") && !hasPort) {
+                        candidates.add("https://$hostPort")
+                        candidates.add("http://$hostPort")
                         candidates.add("http://$hostOnly:8000")
+                    } else {
+                        candidates.add("http://$hostPort")
+                        candidates.add("https://$hostPort")
+                        if (!hasPort) {
+                            candidates.add("http://$hostOnly:8000")
+                        }
                     }
-                    candidates.add("https://$hostPort")
-                } else {
-                    candidates.add("https://$hostPort")
-                    candidates.add("http://$hostPort")
-                    if (!hasPort) {
-                        candidates.add("http://$hostOnly:8000")
+                }
+                else -> {
+                    if (isLocalHost || hostPort.endsWith(":8000") || hostPort.endsWith(":80")) {
+                        candidates.add("http://$hostPort")
+                        if (!hasPort) {
+                            candidates.add("http://$hostOnly:8000")
+                        }
+                        candidates.add("https://$hostPort")
+                    } else {
+                        candidates.add("https://$hostPort")
+                        candidates.add("http://$hostPort")
+                        if (!hasPort) {
+                            candidates.add("http://$hostOnly:8000")
+                        }
                     }
                 }
             }
         }
 
+        if (candidates.isEmpty()) {
+            candidates.add("http://192.168.178.1:8000")
+        }
+
         return candidates.distinct()
+    }
+
+    private fun isLocalCandidate(url: String): Boolean {
+        val host = url.removePrefix("http://").removePrefix("https://").substringBefore(':').substringBefore('/')
+        return host.startsWith("192.168.") ||
+            host.startsWith("10.") ||
+            host.startsWith("172.") ||
+            host.endsWith(".fritz.box", ignoreCase = true) ||
+            host.endsWith(".local", ignoreCase = true)
+    }
+
+    /**
+     * Automatically discovers the Raspberry Pi running PV Optimizer in the local home Wi-Fi
+     * when the MyFRITZ! WAN address cannot be hairpinned by the FRITZ!Box router.
+     */
+    private suspend fun discoverLocalPiInHomeNetwork(): Pair<String, InverterStatus>? = coroutineScope {
+        val subnet = getLocalWifiSubnetPrefix() ?: return@coroutineScope null
+
+        // 1. Try common Raspberry Pi hostnames on the FRITZ!Box LAN first
+        val hostnameCandidates = listOf(
+            "http://raspberrypi.fritz.box:8000",
+            "http://raspberrypi:8000",
+            "http://raspberrypi.local:8000",
+            "http://pvoptimizer.fritz.box:8000",
+            "http://raspberrypi.fritz.box"
+        )
+        for (hostUrl in hostnameCandidates) {
+            try {
+                val req = Request.Builder().url("$hostUrl/api/status").get().build()
+                fastLanClient.newCall(req).execute().use { res ->
+                    if (res.isSuccessful) {
+                        val body = res.body?.string().orEmpty().trimStart()
+                        if (body.startsWith("{") && body.contains("pv_power_w")) {
+                            val status = gson.fromJson(body, InverterStatus::class.java)
+                            prefs.localServerUrl = hostUrl
+                            resolvedBaseUrl = hostUrl
+                            return@coroutineScope Pair(hostUrl, status)
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 2. Parallel scan of the local /24 subnet on port 8000
+        val foundRef = AtomicReference<Pair<String, InverterStatus>?>(null)
+        val semaphore = Semaphore(64)
+
+        val jobs = (1..254).map { lastOctet ->
+            async(Dispatchers.IO) {
+                if (foundRef.get() != null) return@async
+                semaphore.withPermit {
+                    if (foundRef.get() != null) return@withPermit
+                    val candidateUrl = "http://$subnet.$lastOctet:8000"
+                    try {
+                        val req = Request.Builder().url("$candidateUrl/api/status").get().build()
+                        fastLanClient.newCall(req).execute().use { res ->
+                            if (res.isSuccessful) {
+                                val body = res.body?.string().orEmpty().trimStart()
+                                if (body.startsWith("{") && body.contains("pv_power_w")) {
+                                    val status = gson.fromJson(body, InverterStatus::class.java)
+                                    foundRef.compareAndSet(null, Pair(candidateUrl, status))
+                                }
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+        jobs.awaitAll()
+
+        val discovered = foundRef.get()
+        if (discovered != null) {
+            prefs.localServerUrl = discovered.first
+            resolvedBaseUrl = discovered.first
+        }
+        discovered
     }
 
     private fun baseUrl(): String {
@@ -154,38 +306,54 @@ class PvApiClient(private val prefs: AppPreferences) {
     }
 
     suspend fun getStatus(): Result<InverterStatus> = withContext(Dispatchers.IO) {
-        var lastError: Exception? = null
+        var primaryError: Exception? = null
 
         for (candidate in candidateBaseUrls()) {
             try {
+                val httpClient = if (isLocalCandidate(candidate) && candidate != resolvedBaseUrl) {
+                    fastLanClient
+                } else {
+                    client
+                }
+
                 val request = Request.Builder()
                     .url("$candidate/api/status")
                     .get()
                     .build()
 
-                var response = client.newCall(request).execute()
+                var response = httpClient.newCall(request).execute()
                 if (response.code == 401 || response.code == 403) {
-                    if (prefs.password.isNotEmpty() && login(prefs.password, candidate).isSuccess) {
-                        response.close()
-                        response = client.newCall(request).execute()
+                    val errBody = response.body?.string().orEmpty()
+                    response.close()
+                    // Only treat 401/403 as PV Optimizer if it comes from our FastAPI backend
+                    if (errBody.contains("Fernzugriff") || errBody.contains("Unauthorized") || errBody.contains("detail")) {
+                        if (prefs.password.isNotEmpty() && login(prefs.password, candidate).isSuccess) {
+                            response = httpClient.newCall(request).execute()
+                        } else {
+                            resolvedBaseUrl = candidate
+                            return@withContext Result.failure(Exception("Login erforderlich (Passwort in Einstellungen prüfen)"))
+                        }
                     } else {
-                        resolvedBaseUrl = candidate
-                        response.close()
-                        return@withContext Result.failure(Exception("Login erforderlich"))
+                        if (primaryError == null) primaryError = Exception("Serverfehler: ${response.code}")
+                        continue
                     }
                 }
 
                 if (!response.isSuccessful) {
                     val code = response.code
                     response.close()
-                    lastError = Exception("Serverfehler: $code")
+                    if (primaryError == null) primaryError = Exception("Serverfehler: $code")
                     continue
                 }
 
                 val body = response.body?.string().orEmpty()
+                response.close()
                 val trimmed = body.trimStart()
                 if (!trimmed.startsWith("{") || !trimmed.contains("pv_power_w")) {
-                    lastError = Exception("Ungültige Antwort von $candidate")
+                    // Hit FRITZ!Box web UI instead of PV Optimizer
+                    if (primaryError == null) {
+                        primaryError = Exception("MyFRITZ!-Adresse zeigt im Heimnetz auf die FRITZ!Box statt auf den Raspberry Pi")
+                    }
                     continue
                 }
 
@@ -193,11 +361,19 @@ class PvApiClient(private val prefs: AppPreferences) {
                 resolvedBaseUrl = candidate
                 return@withContext Result.success(status)
             } catch (e: Exception) {
-                lastError = e
+                if (primaryError == null) {
+                    primaryError = e
+                }
             }
         }
 
-        Result.failure(lastError ?: Exception("Verbindungsfehler"))
+        // If direct candidates failed and we are on home Wi-Fi (192.168.x.x), auto-discover the Raspberry Pi!
+        val discovered = discoverLocalPiInHomeNetwork()
+        if (discovered != null) {
+            return@withContext Result.success(discovered.second)
+        }
+
+        Result.failure(primaryError ?: Exception("Verbindungsfehler"))
     }
 
     suspend fun getConsumers(): Result<List<Consumer>> = withContext(Dispatchers.IO) {

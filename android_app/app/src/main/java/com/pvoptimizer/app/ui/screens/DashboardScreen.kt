@@ -32,9 +32,10 @@ fun DashboardScreen(
     isScanning: Boolean = false,
     errorMessage: String?,
     currentUrl: String,
+    currentLocalUrl: String,
     currentPassword: String,
     onRefresh: () -> Unit,
-    onSaveSettings: (url: String, password: String) -> Unit,
+    onSaveSettings: (url: String, localUrl: String, password: String) -> Unit,
     onToggleConsumer: (consumerId: String, isOn: Boolean) -> Unit,
     onOverrideConsumer: (consumerId: String, isManual: Boolean) -> Unit,
     onPowerChange: (consumerId: String, powerW: Double) -> Unit,
@@ -301,10 +302,11 @@ fun DashboardScreen(
     if (showSettings) {
         SettingsDialog(
             initialUrl = currentUrl,
+            initialLocalUrl = currentLocalUrl,
             initialPassword = currentPassword,
             onDismiss = { showSettings = false },
-            onSave = { url, pw ->
-                onSaveSettings(url, pw)
+            onSave = { url, localUrl, pw ->
+                onSaveSettings(url, localUrl, pw)
                 showSettings = false
             }
         )

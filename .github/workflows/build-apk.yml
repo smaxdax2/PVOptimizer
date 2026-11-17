@@ -49,15 +49,15 @@ jobs:
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.0
-          name: "PV Optimizer Android App v1.1.0"
+          tag_name: v1.2.0
+          name: "PV Optimizer Android App v1.2.0"
           body: |
-            ### ☀️ PV Optimizer Android App (v1.1.0)
+            ### ☀️ PV Optimizer Android App (v1.2.0)
             - 📊 Live Kacheln für Solar, Netz (Einspeisung/Bezug), Batterie und Hausverbrauch
             - ⚡ Intelligente Verbraucher-Steuerung (Wasserboiler, Kasa Plugs) & Automatik/Manuell-Modus
             - ✏️ Leistung (W) aller Verbraucher direkt in der App sichtbar & bearbeitbar
+            - 🏠 Automatische Raspberry Pi Erkennung im Heimnetz (WLAN) + IPv6-Priorisierung für MyFRITZ! (DS-Lite)
             - 📱 Android Homescreen Live-Widget
-            - 🔒 Verbesserte Verbindung über MyFRITZ! (HTTPS / selbstsignierte Zertifikate) & lokales WLAN
           files: android_app/app/build/outputs/apk/debug/PVOptimizer.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
